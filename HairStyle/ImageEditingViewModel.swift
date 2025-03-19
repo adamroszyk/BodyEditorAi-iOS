@@ -9,16 +9,25 @@ class ImageEditingViewModel: ObservableObject {
     
     // Proxy endpoint that securely handles the Gemini API key
     let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini")!
-    
     func editImage() {
+        // Ensure an image exists and encode it as base64.
+        guard let image = editedImage,
+              let imageData = image.jpegData(compressionQuality: 0.8)?.base64EncodedString() else {
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.errorMessage = "No valid image selected"
+            }
+            return
+        }
+
         isLoading = true
         errorMessage = ""
         textResult = ""
 
-        // Create payload for image generation
+        // Create payload for image generation including the base64 image data.
         let payload: [String: Any] = [
             "prompt": prompt,
-            "image": true // Signal that we want image generation
+            "image": imageData  // Send the actual image data, not just a flag
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
@@ -55,12 +64,12 @@ class ImageEditingViewModel: ObservableObject {
                 return
             }
             
-            // First, try to parse response as JSON
+            // Try parsing the response as JSON.
             do {
                 if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     print("Response: \(jsonResponse)")
                     
-                    // Check for error in response
+                    // Check for errors in the response.
                     if let error = jsonResponse["error"] as? [String: Any] {
                         let errorMessage = (error["message"] as? String) ?? "Unknown error"
                         DispatchQueue.main.async {
@@ -69,35 +78,32 @@ class ImageEditingViewModel: ObservableObject {
                         return
                     }
                     
-                    // Try to extract image data from response
+                    // Try to extract image data from the response.
                     if let candidates = jsonResponse["candidates"] as? [[String: Any]],
                        let candidate = candidates.first,
                        let content = candidate["content"] as? [String: Any],
                        let parts = content["parts"] as? [[String: Any]] {
                         
-                        // Process response parts
+                        // Process response parts.
                         for part in parts {
-                            // Handle text parts
+                            // Append text if available.
                             if let text = part["text"] as? String {
                                 DispatchQueue.main.async {
                                     self.textResult += text
                                 }
                             }
                             
-                            // Handle image parts
+                            // Process inline image data.
                             if let inlineData = part["inlineData"] as? [String: Any],
-                               let data = inlineData["data"] as? String,
-                               let imageData = Data(base64Encoded: data) {
-                                
-                                if let image = UIImage(data: imageData) {
-                                    DispatchQueue.main.async {
-                                        self.editedImage = image
-                                    }
+                               let dataString = inlineData["data"] as? String,
+                               let imageData = Data(base64Encoded: dataString),
+                               let image = UIImage(data: imageData) {
+                                DispatchQueue.main.async {
+                                    self.editedImage = image
                                 }
                             }
                         }
                     } else {
-                        // If no candidates/parts found, just show the raw response
                         let responseString = String(data: data, encoding: .utf8) ?? "Unable to parse response"
                         DispatchQueue.main.async {
                             self.textResult = "Response: \(responseString)"
@@ -112,4 +118,5 @@ class ImageEditingViewModel: ObservableObject {
             }
         }.resume()
     }
+
 }

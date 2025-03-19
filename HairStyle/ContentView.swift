@@ -9,7 +9,7 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
-                // Display the edited image if available; if not, show text result (if any); otherwise, a placeholder
+                // Display image or text result or placeholder
                 if let image = viewModel.editedImage {
                     Image(uiImage: image)
                         .resizable()
@@ -33,37 +33,18 @@ struct ContentView: View {
                         .padding()
                 }
                 
-                // Error message display
-                if !viewModel.errorMessage.isEmpty {
-                    Text(viewModel.errorMessage)
-                        .foregroundColor(.red)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                }
-                
                 // Button to open the image picker
                 Button("Select Image") {
                     showingImagePicker = true
                 }
                 .padding()
                 
-                // Text field for entering the prompt
+                // Text field for prompt
                 TextField("Enter prompt for image modification...", text: $viewModel.prompt)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(.horizontal)
                 
-                // Status indicator
-                if viewModel.editedImage != nil {
-                    Text("Image selected - Enter prompt to modify this image")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-                }
-                
-                // Button to clear the current image
+                // Additional UI elements…
                 if viewModel.editedImage != nil {
                     Button("Clear Image") {
                         viewModel.editedImage = nil
@@ -72,13 +53,11 @@ struct ContentView: View {
                     .padding(.top, 4)
                 }
                 
-                // Show a loading indicator when waiting for a response
                 if viewModel.isLoading {
                     ProgressView()
                         .padding()
                 }
                 
-                // Button to trigger the API call
                 Button("Modify Image") {
                     viewModel.editImage()
                 }
@@ -87,17 +66,25 @@ struct ContentView: View {
                 .foregroundColor(.white)
                 .cornerRadius(8)
                 .padding(.horizontal)
-                // Disable if no image is selected, prompt is empty, or a request is in progress
                 .disabled(viewModel.editedImage == nil || viewModel.prompt.isEmpty || viewModel.isLoading)
             }
             .navigationTitle("Image Modification")
             .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
                 ImagePicker(image: $inputImage)
             }
+            // Add alert that triggers when errorMessage is not empty
+            .alert("Error", isPresented: Binding<Bool>(
+                get: { !viewModel.errorMessage.isEmpty },
+                set: { _ in viewModel.errorMessage = "" }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(viewModel.errorMessage)
+            }
         }
     }
     
-    // When an image is selected, load it into the ViewModel and clear any previous text result
+    // Load image into viewModel after selection
     func loadImage() {
         if let selectedImage = inputImage {
             viewModel.editedImage = selectedImage
