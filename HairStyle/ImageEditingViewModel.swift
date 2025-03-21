@@ -7,8 +7,9 @@ class ImageEditingViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
     
-    // Proxy endpoint that securely handles the Gemini API key
+    // Proxy endpoint that securely handles your Gemini API key.
     let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini")!
+    
     func editImage() {
         // Ensure an image exists and encode it as base64.
         guard let image = editedImage,
@@ -19,15 +20,15 @@ class ImageEditingViewModel: ObservableObject {
             }
             return
         }
-
+        
         isLoading = true
         errorMessage = ""
         textResult = ""
-
-        // Create payload for image generation including the base64 image data.
+        
+        // Create payload for image modification.
         let payload: [String: Any] = [
             "prompt": prompt,
-            "image": imageData  // Send the actual image data, not just a flag
+            "image": imageData
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
@@ -46,9 +47,7 @@ class ImageEditingViewModel: ObservableObject {
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
             
-            DispatchQueue.main.async {
-                self.isLoading = false
-            }
+            DispatchQueue.main.async { self.isLoading = false }
             
             if let error = error {
                 DispatchQueue.main.async {
@@ -64,12 +63,11 @@ class ImageEditingViewModel: ObservableObject {
                 return
             }
             
-            // Try parsing the response as JSON.
             do {
                 if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     print("Response: \(jsonResponse)")
                     
-                    // Check for errors in the response.
+                    // Handle API errors.
                     if let error = jsonResponse["error"] as? [String: Any] {
                         let errorMessage = (error["message"] as? String) ?? "Unknown error"
                         DispatchQueue.main.async {
@@ -78,22 +76,19 @@ class ImageEditingViewModel: ObservableObject {
                         return
                     }
                     
-                    // Try to extract image data from the response.
+                    // Process response parts.
                     if let candidates = jsonResponse["candidates"] as? [[String: Any]],
                        let candidate = candidates.first,
                        let content = candidate["content"] as? [String: Any],
                        let parts = content["parts"] as? [[String: Any]] {
                         
-                        // Process response parts.
                         for part in parts {
-                            // Append text if available.
                             if let text = part["text"] as? String {
                                 DispatchQueue.main.async {
                                     self.textResult += text
                                 }
                             }
                             
-                            // Process inline image data.
                             if let inlineData = part["inlineData"] as? [String: Any],
                                let dataString = inlineData["data"] as? String,
                                let imageData = Data(base64Encoded: dataString),
@@ -118,5 +113,4 @@ class ImageEditingViewModel: ObservableObject {
             }
         }.resume()
     }
-
 }
