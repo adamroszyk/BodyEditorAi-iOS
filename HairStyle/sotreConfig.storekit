@@ -1,0 +1,145 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "9B68E2F4",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6743659780",
+    "_developerTeamID" : "3LQM9KSXZ2",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 764589866.14093602,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21655902",
+      "localizations" : [
+
+      ],
+      "name" : "wannabe",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6743744938",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Week of Unlimited Photo Edits in Beauty Cam",
+              "displayName" : "Week of Unlimited Photo Edits",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "wbweek",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "Week of Unlimited Photo Editing",
+          "subscriptionGroupID" : "21655902",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "24.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6743745856",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Week of Unlimited Photo Editing- Beauty Cam",
+              "displayName" : "Week of Unlimited Photo Edits",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "wbyear",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Year of Unlimited Photo Editing",
+          "subscriptionGroupID" : "21655902",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

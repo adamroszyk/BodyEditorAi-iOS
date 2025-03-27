@@ -1,0 +1,1742 @@
+2025-03-25 14:32:40
+//
+//  HairStyleApp.swift
+//  HairStyle
+//
+//  Created by Adam Roszyk on 3/19/25.
+import SwiftUI
+
+@main
+struct HairStyleApp: App {
+    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
+    
+    /// Create a single instance of SubscriptionManager
+    @StateObject var subscriptionManager = SubscriptionManager()
+    
+    var body: some Scene {
+        WindowGroup {
+            if hasCompletedOnboarding {
+                ContentView()
+                    .environmentObject(subscriptionManager)
+            } else {
+                OnboardingView()
+                    .environmentObject(subscriptionManager)
+            }
+        }
+    }
+}
+import SwiftUI
+import Vision
+import CoreML
+import CoreImage
+import UIKit
+import os
+
+
+// MARK: - ImageEditingViewModel
+class ImageEditingViewModel: ObservableObject {
+    // MARK: - Published Properties
+    @Published var prompt: String = ""
+    @Published var editedImage: UIImage? = nil
+    @Published var textResult: String = ""
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String = ""
+    @Published var showPremiumAlert: Bool = false
+    @Published var depthMapImage: UIImage? = nil  // Holds the generated depth map image
+
+    // Depth model property
+    var model: DepthAnythingV2SmallF16?
+    
+    // Proxy endpoint for your Gemini API key.
+    let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini")!
+    
+    // Define the target size expected by the model.
+    private let targetSize = CGSize(width: 518, height: 392)
+    
+    // Shared CIContext instance.
+    private let ciContext = CIContext()
+
+    // MARK: - Depth Model Loading & Depth Map Generation
+    
+    /// Loads your depth removal model.
+    func loadModel() async throws {
+        let config = MLModelConfiguration()
+        config.computeUnits = .all
+        model = try DepthAnythingV2SmallF16(configuration: config)
+    }
+    
+    func generateDepthMap(for image: UIImage) async {
+        // Ensure the model is loaded.
+        if model == nil {
+            do {
+                try await loadModel()
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Error loading model: \(error.localizedDescription)"
+                }
+                return
+            }
+        }
+        
+        // Convert the UIImage to a CIImage.
+        guard let inputCI = CIImage(image: image) else {
+            await MainActor.run {
+                self.errorMessage = "Failed to create CIImage from UIImage."
+            }
+            return
+        }
+        
+        // Resize the CIImage to the model's target size.
+        let resizedCI = inputCI.resized(to: targetSize)
+        
+        // Render the resized CIImage to a CVPixelBuffer.
+        guard let pixelBuffer = ciContext.render(resizedCI, pixelFormat: kCVPixelFormatType_32ARGB) else {
+            await MainActor.run {
+                self.errorMessage = "Failed to render CIImage to pixel buffer."
+            }
+            return
+        }
+        
+        do {
+            let clock = ContinuousClock()
+            let start = clock.now
+            
+            // Run the model on a background thread using the underlying MLModel.
+            let result = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global().async {
+                    do {
+                        let featureProvider = try MLDictionaryFeatureProvider(dictionary: ["image": pixelBuffer])
+                        let coreMLResult = try self.model!.model.prediction(from: featureProvider)
+                        continuation.resume(returning: coreMLResult)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+            
+            let duration = clock.now - start
+            print("Model inference took \(duration.formatted(.units(allowed: [.seconds, .milliseconds])))")
+            
+            // Retrieve the 'depth' output from the result.
+            guard let outputPixelBuffer = result.featureValue(for: "depth")?.imageBufferValue else {
+                await MainActor.run {
+                    self.errorMessage = "The model did not return a 'depth' feature."
+                }
+                return
+            }
+            
+            // Convert the output pixel buffer to a CIImage.
+            var depthCI = CIImage(cvPixelBuffer: outputPixelBuffer)
+            
+            // Normalize the depth image by adjusting contrast and brightness.
+            // Adjust these parameters if needed.
+            depthCI = depthCI.applyingFilter("CIColorControls", parameters: [
+                kCIInputContrastKey: 2.0,
+                kCIInputBrightnessKey: 0.3
+            ])
+            
+            // Compute the original image's full pixel size.
+            let originalPixelSize = CGSize(width: image.size.width * image.scale,
+                                           height: image.size.height * image.scale)
+            // Resize the depth image to match the original image dimensions.
+            depthCI = depthCI.resized(to: originalPixelSize)
+            
+            // Create a CGImage from the CIImage.
+            guard let depthCGImage = ciContext.createCGImage(depthCI, from: depthCI.extent) else {
+                await MainActor.run {
+                    self.errorMessage = "Failed to create CGImage from depth output."
+                }
+                return
+            }
+            
+            let finalDepthImage = UIImage(cgImage: depthCGImage)
+            
+            // Update UI on the main thread.
+            await MainActor.run {
+                self.depthMapImage = finalDepthImage
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Depth inference error: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    
+    // MARK: - Image Editing (Network Request)
+    func editImage() {
+        guard let image = editedImage,
+              let imageData = image.jpegData(compressionQuality: 0.8)?.base64EncodedString() else {
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.errorMessage = "No valid image selected"
+            }
+            return
+        }
+        
+        isLoading = true
+        errorMessage = ""
+        textResult = ""
+        
+        let payload: [String: Any] = [
+            "prompt": prompt,
+            "image": imageData
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.errorMessage = "Failed to serialize request"
+            }
+            return
+        }
+        
+        var request = URLRequest(url: apiURL)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = jsonData
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async { self.isLoading = false }
+            
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Network error: \(error.localizedDescription)"
+                }
+                return
+            }
+            
+            guard let data = data else {
+                DispatchQueue.main.async {
+                    self.errorMessage = "No data received from server"
+                }
+                return
+            }
+            
+            do {
+                if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let errorDict = jsonResponse["error"] as? [String: Any] {
+                        let errorMessage = (errorDict["message"] as? String) ?? "Unknown error"
+                        DispatchQueue.main.async {
+                            self.errorMessage = "API Error: \(errorMessage)"
+                        }
+                        return
+                    }
+                    
+                    if let candidates = jsonResponse["candidates"] as? [[String: Any]],
+                       let candidate = candidates.first,
+                       let content = candidate["content"] as? [String: Any],
+                       let parts = content["parts"] as? [[String: Any]] {
+                        
+                        for part in parts {
+                            if let text = part["text"] as? String {
+                                DispatchQueue.main.async {
+                                    self.textResult += text
+                                }
+                            }
+                            
+                            if let inlineData = part["inlineData"] as? [String: Any],
+                               let dataString = inlineData["data"] as? String,
+                               let imageData = Data(base64Encoded: dataString),
+                               let image = UIImage(data: imageData) {
+                                DispatchQueue.main.async {
+                                    self.editedImage = image
+                                }
+                            }
+                        }
+                    } else {
+                        let responseString = String(data: data, encoding: .utf8) ?? "Unable to parse response"
+                        DispatchQueue.main.async {
+                            self.textResult = "Response: \(responseString)"
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
+                    self.textResult = String(data: data, encoding: .utf8) ?? "Unable to display response"
+                }
+            }
+        }.resume()
+    }
+}
+import SwiftUI
+import PhotosUI
+import Vision
+
+struct ContentView: View {
+    @StateObject var viewModel = ImageEditingViewModel()
+    
+    @State private var showingImagePicker = false
+    @State private var inputImage: UIImage?
+    
+    // Slider controls (if you use a before/after slider)
+    @State private var sliderPosition: CGFloat = 0.5
+    @State private var showSlider: Bool = false
+    
+    // State variable for showing a save-success alert
+    @State private var showSaveSuccessAlert: Bool = false
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                if let image = inputImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .blur(radius: 30)
+                        .opacity(0.6)
+                        .ignoresSafeArea()
+                } else {
+                    Color.pink.opacity(0.1).ignoresSafeArea()
+                }
+                
+                VStack {
+                    Spacer(minLength: 0)
+                    
+                    PhotoWithRefreshOverlay(
+                        originalImage: inputImage,
+                        editedImage: viewModel.editedImage,
+                        depthMapImage: viewModel.depthMapImage, // New depth map overlay
+                        sliderPosition: $sliderPosition,
+                        showSlider: $showSlider,
+                        onReplaceTap: { showingImagePicker = true },
+                        onAddTap: { showingImagePicker = true },
+                        onSaveTap: { showSaveSuccessAlert = false }
+                    )
+                    
+                    Spacer(minLength: 0)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                BottomMenuView(
+                    viewModel: viewModel,
+                    inputImage: $inputImage,
+                    sliderPosition: $sliderPosition
+                )
+                .frame(height: 160)
+            }
+            .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
+                ImagePicker(image: $inputImage)
+            }
+            .alert("Error", isPresented: Binding<Bool>(
+                get: { !viewModel.errorMessage.isEmpty },
+                set: { _ in viewModel.errorMessage = "" }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(viewModel.errorMessage)
+            }
+            .alert("Saved", isPresented: $showSaveSuccessAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Image saved successfully to your Photos.")
+            }
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .task {
+            do {
+                try await viewModel.loadModel()
+            } catch {
+                viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    func loadImage() {
+        if let selectedImage = inputImage {
+            viewModel.editedImage = selectedImage
+            viewModel.textResult = ""
+            viewModel.errorMessage = ""
+            
+            // Generate the depth map asynchronously after selecting an image.
+            Task {
+                await viewModel.generateDepthMap(for: selectedImage)
+            }
+        }
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   Ÿ                  ‰     com.apple.lastuseddate#PS       Ù   …  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   Wç‚g    ß    Ú XÇÊ 	1Ôä cî˛ﬁ}¯SJ1.6ÈÌßi≤dÄ°6ß∂ztJ{T˚èœc±;GµV†ÙøÕÀÊ¶∞3Is∞~¿‘BUÔ
+T¯ßΩ!aæ+y:Œ≤
+J4¯¸ñ-ße∫ü^‡1»ˆ∏KìÏZ#ﬂ∂ï¨z4⁄a)ıÕˆ’óùÓ“ØëEÕù®Gã7÷Ë>M^§(iµ≠∫Ó&Pﬁyî@aûz	Â§ vû^ÚJ·Ñ9º≤Ù≠´î¸	8èÒY´¥d,Â                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  ImagePicker.swift
+//  HairStyle
+//
+//  Created by Adam Roszyk on 3/19/25.
+//
+import SwiftUI
+import PhotosUI
+
+
+// UIKit-based image picker integrated into SwiftUI using UIViewControllerRepresentable
+struct ImagePicker: UIViewControllerRepresentable {
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePicker
+
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let uiImage = info[.originalImage] as? UIImage {
+                parent.image = uiImage
+            }
+            picker.dismiss(animated: true)
+        }
+    }
+    
+    @Binding var image: UIImage?
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_rssxxruga2vy7po5qakynks5oq   Ôò‚g    ÑM|;    ÚVîT∫H[_«Ñ}|Îœﬁh‰€çâ–aòN“%çFì‰‚*ÂÈ˘ÖhycÛ˙ÉÂïrì‘„6>ΩàPÁô°!ªò^iRÙàπÌ…içÊ0⁄\+wÇ	†‰C8a=f·‹<-'BYV2´/¸∞ÆÎóqMDCÛÍ„Û"ÿ…∞j>æ°§ÈˇÑ?ú%Ì.´Áº™,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   º   y                  º   y  7com.apple.metadata:kMDLabel_rssxxruga2vy7po5qakynks5oq   Ú‘YÒLÌÀ â≠ï⁄…#∏ß€":≈cTJCp(ùÊC|£ß-‰v
+'}Ø;Ìß„xììâ∑ù©˜ı‘¡bﬂ™)#qπ∞f3«ÙI^JñC⁄ÿÛ1fG®@˝Dßﬂw=Osª<‚A[ëy“º(K™ío¸£Ä(Ó¨                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇimport SwiftUI
+import PhotosUI
+import Vision
+import SwiftUI
+import Vision
+import SwiftUI
+import Vision
+
+struct MainImageArea: View {
+    @ObservedObject var viewModel: ImageEditingViewModel
+    @Binding var showingImagePicker: Bool
+    @Binding var inputImage: UIImage?
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    
+    @State private var isAnimatingSlider = false
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottomLeading) {
+                
+                // Show different content depending on whether we have images or text
+                mainContent(geometry: geometry)
+                
+                // Bottom-left "replace image" button if an image is loaded
+                if inputImage != nil {
+                    RefreshButton(showingImagePicker: $showingImagePicker)
+                        .padding(.leading, 16)
+                        .padding(.bottom, 16)
+                }
+            }
+            .onAppear {
+                animateSlider()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func mainContent(geometry: GeometryProxy) -> some View {
+        if let original = inputImage,
+           let modified = viewModel.editedImage {
+            ComparisonView(
+                originalImage: original,
+                modifiedImage: modified,
+                sliderPosition: $sliderPosition,
+                showSlider: $showSlider,
+                geometry: geometry
+            )
+        } else if let modified = viewModel.editedImage {
+            ModifiedImageView(
+                image: modified,
+                showSlider: $showSlider,
+                geometry: geometry
+            )
+        } else if !viewModel.textResult.isEmpty {
+            TextResultView(text: viewModel.textResult, geometry: geometry)
+        } else {
+            //EmptyStateView(onAddTap: onAddTap)
+        }
+    }
+    
+    
+    
+    struct RefreshButton: View {
+        @Binding var showingImagePicker: Bool
+        
+        var body: some View {
+            Button(action: {
+                showingImagePicker = true
+            }) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.black.opacity(0.5))
+                    .clipShape(Circle())
+            }
+        }
+    }
+    
+    private func animateSlider() {
+        // ...existing animation code...
+    }
+}
+
+struct ComparisonView: View {
+    let originalImage: UIImage
+    let modifiedImage: UIImage
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    let geometry: GeometryProxy
+    
+    var body: some View {
+        // Subtract 32 for left/right padding (16 on each side)
+        let maxWidth = geometry.size.width - 32
+        
+        ZStack {
+            // Original image
+            Image(uiImage: originalImage)
+                .resizable()
+                .scaledToFit()
+                // Keep the image at most `maxWidth` wide
+                .frame(width: maxWidth)
+            
+            // Modified image
+            Image(uiImage: modifiedImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: maxWidth)
+                .mask(
+                    Rectangle()
+                        .frame(width: maxWidth * sliderPosition)
+                )
+            
+            // Slider at bottom
+            VStack {
+                Spacer()
+                Slider(value: $sliderPosition, in: 0...1)
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 20)
+            }
+        }
+        // Make the ZStack fill the parent so it stays centered
+        .frame(width: geometry.size.width, height: geometry.size.height)
+    }
+}
+
+struct ModifiedImageView: View {
+    let image: UIImage
+    @Binding var showSlider: Bool
+    let geometry: GeometryProxy
+    
+    var body: some View {
+        let maxWidth = geometry.size.width - 32
+        
+        ZStack {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: maxWidth)
+                .clipped()
+        }
+        .frame(width: geometry.size.width, height: geometry.size.height)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation {
+                showSlider = false
+            }
+        }
+    }
+}
+
+
+struct TextResultView: View {
+    let text: String
+    let geometry: GeometryProxy
+    
+    var body: some View {
+        ScrollView {
+            Text(text)
+                .padding()
+        }
+        .frame(width: geometry.size.width)
+        .background(Color.gray.opacity(0.1))
+    }
+}
+
+struct EmptyStateView: View {
+    let onAddTap: () -> Void
+    
+    var body: some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.3))
+            .overlay(
+                VStack {
+                    Spacer()
+                    Button(action: {
+                        onAddTap()
+                    }) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "photo.fill.on.rectangle.fill")
+                                .font(.system(size: 40))
+                            Text("Add Image")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                        .shadow(radius: 10)
+                    }
+                    Spacer()
+                }
+                .frame(height: 600)
+            )
+    }
+}
+
+struct AddImageButton: View {
+    @Binding var showingImagePicker: Bool
+    
+    var body: some View {
+        Button(action: {
+            showingImagePicker = true
+        }) {
+            VStack(spacing: 12) {
+                Image(systemName: "photo.fill.on.rectangle.fill")
+                    .font(.system(size: 40))
+                Text("Add Image")
+                    .font(.headline)
+            }
+            .foregroundColor(.white)
+            .padding()
+            .background(Color.blue)
+            .cornerRadius(12)
+            .shadow(radius: 10)
+        }
+    }
+}
+
+struct RefreshButton: View {
+    @Binding var showingImagePicker: Bool
+    
+    var body: some View {
+        Button(action: {
+            showingImagePicker = true
+        }) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 22))
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.black.opacity(0.5))
+                .clipShape(Circle())
+        }
+        .padding(16)
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   π                  ‰     com.apple.lastuseddate#PS       Ù   ©  7com.apple.metadata:kMDLabel_rssxxruga2vy7po5qakynks5oq   )·g    ˘'7    Ú,ZYﬂx[<TymûÄöü¸´„VS˙JÛ¨1µµÃóQõÏ5DÃ\ÊÂ∑Ty:ïçYõ©$0óWÛú~˘•#fÑ£?∞ÈUÂµàcHÈ6Ã√≠·ŸoÃç“ Û∆ÁÚ˝¿z3ùˇwB›~ã∫é(î&˙yÕ¥$ø˛˝Ò˜πﬂêü‰R™Âº£„∞ç®_@ﬁéÒ™Ïän[Í‰·ﬂ	Ò2+kGm                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇimport SwiftUI
+import StoreKit
+
+struct BottomMenuView: View {
+    @ObservedObject var viewModel: ImageEditingViewModel
+    @Binding var inputImage: UIImage?
+    @Binding var sliderPosition: CGFloat
+    
+    @State private var selectedCategory: String = "Hairstyle"
+    @State private var selectedItemId: UUID?
+    
+    /// Tracks how many times the user has generated an image
+    @State private var generationCount: Int = 0
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            categoriesSection
+                .frame(height: 50)
+                .padding(.horizontal)
+            
+            itemsSection
+                .frame(height: 110)
+        }
+        .background(Color.clear)
+        
+        // Show a premium-limit alert if the user hits the generation limit
+        .alert("Premium Limit", isPresented: $viewModel.showPremiumAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage)
+        }
+    }
+    
+    // MARK: - Categories Section
+    private var categoriesSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 20) {
+                ForEach(BeautyDataPrompts.categories, id: \.self) { category in
+                    Text(category)
+                        .fontWeight(selectedCategory == category ? .bold : .regular)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(selectedCategory == category ? Color.white.opacity(0.1) : Color.clear)
+                        .foregroundColor(selectedCategory == category ? .white : .primary)
+                        .cornerRadius(8)
+                        .onTapGesture {
+                            withAnimation {
+                                selectedCategory = category
+                            }
+                        }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Items Section
+    private var itemsSection: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .center, spacing: 16) {
+                    // Loop through the items for the selected category
+                    ForEach(BeautyDataPrompts.items[selectedCategory] ?? []) { item in
+                        itemButton(for: item)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .onChange(of: selectedCategory) { _ in
+                scrollToFirst(proxy: proxy)
+            }
+            .onAppear {
+                scrollToFirst(proxy: proxy)
+            }
+        }
+    }
+    
+    // MARK: - Item Button
+    private func itemButton(for item: HairItem) -> some View {
+        VStack {
+            // You can place an Image or systemName icon for the item here
+            ZStack {
+                if let imageName = item.image {
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 60, height: 60)
+                } else {
+                    Image(systemName: "photo.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 40, height: 40)
+                        .foregroundColor(.gray)
+                }
+                
+                if viewModel.isLoading && selectedItemId == item.id {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .frame(width: 60, height: 60)
+                        .background(Color.black.opacity(0.3))
+                }
+            }
+            
+            Text(item.name)
+                .font(.caption)
+                .lineLimit(1)
+        }
+        .frame(width: 80)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(selectedItemId == item.id ? Color.white.opacity(0.01) : Color.white)
+        .cornerRadius(8)
+        .onTapGesture {
+            guard !viewModel.isLoading else { return }
+            selectedItemId = item.id
+            viewModel.prompt = item.prompt
+            
+            // Increment generation count
+            generationCount += 1
+            
+            // Check if user reached the limit (3 in this example)
+            if generationCount >= 3 {
+                // Show premium-limit message
+                viewModel.errorMessage = "Premium limit reached. Upgrade to premium for unlimited images."
+                viewModel.showPremiumAlert = true
+                
+                // Optionally request a StoreKit review
+                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                    SKStoreReviewController.requestReview(in: scene)
+                }
+                
+                // Because we've reached the limit, we skip calling editImage()
+                // Instead we display the alert. You can handle logic as you see fit.
+                
+            } else {
+                // If user is still within the limit, proceed with the image edit
+                viewModel.editImage()
+            }
+        }
+        .disabled(viewModel.isLoading)
+        .opacity(viewModel.isLoading && selectedItemId != item.id ? 0.5 : 1.0)
+    }
+    
+    // MARK: - Helper: Scroll to First Item
+    private func scrollToFirst(proxy: ScrollViewProxy) {
+        if let firstId = BeautyDataPrompts.items[selectedCategory]?.first?.id {
+            withAnimation {
+                proxy.scrollTo(firstId, anchor: .leading)
+            }
+        }
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   Ÿ                  ‰     com.apple.lastuseddate#PS       Ù   …  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   óé‚g    æå≠+    Úãº4?.Xí=ñ˜ùU´Ô¬P„/ﬂ^iﬁ#+˝¬ˆr5èå5»	‰•W∫µ4Ú˙?TÉ%Nïîç‚_‘1≠ç¶–Çiö∫ÔîÚx_n)˚)(·›Ø)Ë$åäâÚÊÂ≤hπdîΩ7ÅY4œ$0ddW¥=˛ºA…ªT≈ıÚ=p®∞≠]`¨∏«‹32 “RŒLÀ'…Œ∆Có‹¶√‹,Q°dRÈOÂa∂\ p©#¥ˇJ˜≤Åñ≈ﬁU∆Xa„u>û¿ú¯≤IOÛ;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  PhotoWithRefreshOverlay.swift
+//  HairStyle
+//
+//  Created by Adam Roszyk on 3/22/25.
+//
+
+import SwiftUI
+import PhotosUI
+import Vision
+
+
+struct PhotoWithRefreshOverlay: View {
+    let originalImage: UIImage?
+    let editedImage: UIImage?
+    // NEW: New parameter for the depth map image.
+    let depthMapImage: UIImage?
+    
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    
+    // Closure for "replace image", "add image", and "save" actions.
+    let onReplaceTap: () -> Void
+    let onAddTap: () -> Void
+    let onSaveTap: () -> Void
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if let orig = originalImage, let edit = editedImage {
+                // Show before/after comparison view
+                AspectLimitedComparisonView(
+                    originalImage: orig,
+                    modifiedImage: edit,
+                    sliderPosition: $sliderPosition,
+                    showSlider: $showSlider
+                )
+            } else if let edit = editedImage {
+                // Show single edited image view
+                AspectLimitedSingleImageView(
+                    image: edit,
+                    showSlider: $showSlider
+                )
+            } else {
+                // Show empty state when there is no image
+                EmptyStateView(onAddTap: onAddTap)
+            }
+            
+            // NEW: If the depth map is available, overlay it on top.
+            if let depth = depthMapImage {
+                Image(uiImage: depth)
+                    .resizable()
+                    .scaledToFit()
+                    .opacity(0.95) // Adjust opacity as needed.
+                    .transition(.opacity)
+                    .padding() // Optional: add padding if needed.
+            }
+            
+            // Only show the buttons if there is an edited image available.
+            if editedImage != nil {
+                HStack {
+                    // "Replace" button
+                    Button(action: onReplaceTap) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
+                    }
+                    
+                    Spacer()
+                    
+                    // "Save" button
+                    Button(action: {
+                        if let imageToSave = editedImage {
+                            UIImageWriteToSavedPhotosAlbum(imageToSave, nil, nil, nil)
+                        }
+                        onSaveTap()
+                    }) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            }
+        }
+        .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
+        .padding(.horizontal, 16)
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   ÷ì‚g    Á.0+    Ú*Jsá#ÖXL’Ò’p¢(|ºÈê”≈†ŸÅ‹U =¸°Z/πQø\wmêR_ßt_ÁU“ÃZôûä„ÑÕqﬁŒmdı©¸±Ï4‹∂E?"nJ‘‹h3jíf…L}FÚ“˝È¡HÎ$z∏±˘xFhÉô∫*ÂúYL˚ªtN˛´ÆΩc$´ﬁk!˙N‰7ºVø◊ÿ                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  AspectLimitedSingleImageView.swift
+//  HairStyle
+//
+//  Created by Adam Roszyk on 3/22/25.
+//
+import SwiftUI
+import PhotosUI
+import Vision
+
+struct AspectLimitedSingleImageView: View {
+    let image: UIImage
+    @Binding var showSlider: Bool
+    
+    var body: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            .onTapGesture {
+                withAnimation {
+                    showSlider = false
+                }
+            }
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ô                  ‰     com.apple.lastuseddate#PS       Ù   â  7com.apple.metadata:kMDLabel_rssxxruga2vy7po5qakynks5oq   §õﬁg     @Ô    Ú*oµF2≠‘„ÕJ—õ˜ã˛D{õÏf¿∫'<R±ÖTµ_a1'Â$∑"‰cæŒ⁄¡J¸$~ôügö.†Æ¶È¿!êv‘8⁄Ïàˇ™Œ”"p†-¨	Zó=ñ]Íç	_úpÀBÎtBÎœ@Ö˜∑ì-5ùúáKÂ‚åÒÙ®=)ùmn8‘∞˚m\ŒÑ                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  AspectLimitedComparisonView.swift
+//  HairStyle
+//
+//  Created by Adam Roszyk on 3/22/25.
+//
+import SwiftUI
+import PhotosUI
+import Vision
+
+
+
+struct AspectLimitedComparisonView: View {
+    let originalImage: UIImage
+    let modifiedImage: UIImage
+    
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    
+    var body: some View {
+        ZStack {
+            // Original image
+            /*Image(uiImage: originalImage)
+                .resizable()
+                .scaledToFit()
+            */
+            // Modified image with a mask
+            Image(uiImage: modifiedImage)
+                .resizable()
+                .scaledToFit()
+            
+            // Slider at bottom
+          /*  VStack {
+                Spacer()
+                Slider(value: $sliderPosition, in: 0...1)
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 20)
+            }*/
+        }
+        .cornerRadius(15)
+        .shadow(color: .black, radius: 10, x: 10, y: 10)
+        /*.onTapGesture {
+            // Toggle the slider or hide it, up to you
+            withAnimation {
+                showSlider.toggle()
+            }
+        }*/
+    }
+    
+    // A helper to figure out how wide the images are in local coordinate space
+    // but a simpler approach: just multiply .infinity by sliderPosition
+    private func sliderWidth() -> CGFloat {
+        // If we do not have geometry, we can do something simpler:
+        // .infinity * sliderPosition doesn't actually work in SwiftUI,
+        // so let's do a different approach:
+        // We'll rely on 'scaledToFit()' within the parent's max frame
+        // So a simpler method is just a fraction of the parent's layout:
+      //  UIScreen.main.bounds.width * 0.6 * sliderPosition
+        1
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_rssxxruga2vy7po5qakynks5oq   Iç‚g    ÊKS    Ú∏ËZã≈G5CÍéeá‘$ˇ1à◊‰êÙﬁÆct3∆eΩÕsŸDFtÍ3‚©#ULM±ör≤?!ΩG≥zZ∂MΩﬁ9pZ™ ‘ﬂR∏q ‰$%ï«°t›¶¨#ï5öïî⁄jäÍ¨÷%^± gÀ¥ô‚ lØ˝˙îä]Â≈›æÍ~FÑb?õCaèù√Án‹7›µ-7⁄                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  OutlineTextModifier.swift
+//  HairStyle
+//
+//  Created by adam on 24/03/2025.
+//
+
+import SwiftUI
+import PhotosUI
+import Vision
+
+struct OutlineTextModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        ZStack {
+            content
+                .foregroundColor(.black.opacity(0.3))
+                .offset(x: -1, y: -1)
+            content
+                .foregroundColor(.black.opacity(0.3))
+                .offset(x: 1, y: -1)
+            content
+                .foregroundColor(.black.opacity(0.3))
+                .offset(x: -1, y: 1)
+            content
+                .foregroundColor(.black.opacity(0.3))
+                .offset(x: 1, y: 1)
+            content
+        }
+    }
+}
+
+struct IdentityModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ô                  ‰     com.apple.lastuseddate#PS       Ù   â  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa    ó‚g    E˚#    Úû ∆ ˆÔtô
+ÄÏi$ìa9xáOıs˙¢¥ÎÈ˘ïDKSæ˘ïqõ®ŸﬂnLïhÏÀëàΩ¨µ˘Ω.a‚ÂOLıHˇ¿{ˆ◊yb‹ Zﬂß9#`Óû'dXØòÛé){ÕÈrÀnw>ÛeÒ∞3ˇÂgCÛ®P—+iâa~k}ª˙åRƒà                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  PaywallPageView.swift
+//  HairStyle
+//
+//  Created by adam on 25/03/2025.
+//
+
+
+import SwiftUI
+import StoreKit
+
+struct PaywallPageView: View {
+    /// We get the subscription manager from the environment
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    
+    /// This is your old @AppStorage property that indicates premium status
+    @Binding var isPremium: Bool
+    
+    /// Called when user finishes this screen (either purchase or ‚ÄúNot Now‚Äù)
+    let onComplete: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Text("Upgrade to Premium")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Text("Unlock unlimited image edits. Choose your plan below:")
+                .font(.title3)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            if subscriptionManager.subscriptions.isEmpty {
+                // If the products haven't loaded yet, show a spinner
+                ProgressView("Loading subscriptions...")
+                    .padding()
+            } else {
+                // Show each subscription product
+                ForEach(subscriptionManager.subscriptions) { product in
+                    Button {
+                        Task {
+                            do {
+                                // Attempt to purchase
+                                let transaction = try await subscriptionManager.purchase(product)
+                                if transaction != nil {
+                                    // Purchase successful
+                                    isPremium = true
+                                    onComplete()
+                                }
+                            } catch {
+                                print("Purchase failed: \(error)")
+                            }
+                        }
+                    } label: {
+                        // Display the product‚Äôs name and price from StoreKit
+                        Text("\(product.displayName) ‚Äì \(product.displayPrice)")
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            
+            Button(action: {
+                // "Not Now" ‚Äì continue as freemium (limited to 3 generations)
+                onComplete()
+            }) {
+                Text("Not Now")
+                    .underline()
+                    .foregroundColor(.gray)
+            }
+            Button(action: {
+                if let url = URL(string: "https://example.com/terms") {
+                    UIApplication.shared.open(url)
+                }
+            }) {
+                Text("Terms of Service")
+                    .underline()
+                    .foregroundColor(.blue)
+            }
+            Spacer()
+        }
+        .padding(.horizontal)
+    }
+}
+import SwiftUI
+import Photos
+import StoreKit
+
+struct OnboardingView: View {
+    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
+    @AppStorage("isPremium") var isPremium: Bool = false
+    
+    @State private var currentPage = 0
+    private let totalPages = 6
+
+    var body: some View {
+        TabView(selection: $currentPage) {
+            // Page 1: Benefit 1
+            OnboardingPageView(imageName: "star.fill",
+                               title: "Amazing Features",
+                               description: "Discover advanced AI editing to bring out your best self.",
+                               onContinue: { currentPage = 1 })
+                .tag(0)
+            
+            // Page 2: Benefit 2
+            OnboardingPageView(imageName: "sparkles",
+                               title: "Effortless Beauty",
+                               description: "Instantly enhance your selfies with just a tap.",
+                               onContinue: { currentPage = 2 })
+                .tag(1)
+            
+            // Page 3: Benefit 3
+            OnboardingPageView(imageName: "heart.fill",
+                               title: "Share Your Style",
+                               description: "Create stunning images and share your unique look with friends.",
+                               onContinue: { currentPage = 3 })
+                .tag(2)
+            
+            // Page 4: Photo Library Permission
+            PhotoLibraryPermissionPageView(onContinue: { currentPage = 4 })
+                .tag(3)
+            
+            // Page 5: Review Prompt
+            ReviewPromptPageView(onContinue: { currentPage = 5 })
+                .tag(4)
+            
+            // Page 6: Paywall
+            PaywallPageView(isPremium: $isPremium, onComplete: completeOnboarding)
+                .tag(5)
+        }
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+    }
+    
+    private func completeOnboarding() {
+        hasCompletedOnboarding = true
+    }
+}
+
+struct OnboardingPageView: View {
+    let imageName: String
+    let title: String
+    let description: String
+    let onContinue: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .foregroundColor(.blue)
+            Text(title)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Text(description)
+                .font(.title3)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Spacer()
+            Button(action: onContinue) {
+                Text("Continue")
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(8)
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+struct PhotoLibraryPermissionPageView: View {
+    @State private var permissionGranted = false
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "photo.on.rectangle.angled")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .foregroundColor(permissionGranted ? .green : .orange)
+            Text("Photo Library Access")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Text("We need permission to save your edited photos to your library.")
+                .font(.title3)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Button(action: {
+                PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+                    DispatchQueue.main.async {
+                        permissionGranted = (status == .authorized || status == .limited)
+                    }
+                }
+            }) {
+                Text(permissionGranted ? "Permission Granted" : "Grant Photo Library Access")
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(permissionGranted ? Color.green : Color.blue)
+                    .cornerRadius(8)
+            }
+            .padding(.horizontal)
+            Spacer()
+            Button(action: onContinue) {
+                Text("Continue")
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(8)
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+struct ReviewPromptPageView: View {
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "hand.thumbsup.fill")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .foregroundColor(.purple)
+            Text("Enjoying the App?")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Text("We‚Äôd love to hear your feedback. Please take a moment to rate us!")
+                .font(.title3)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Button(action: {
+                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                    SKStoreReviewController.requestReview(in: scene)
+                }
+            }) {
+                Text("Rate Now")
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.purple)
+                    .cornerRadius(8)
+            }
+            .padding(.horizontal)
+            Spacer()
+            Button(action: onContinue) {
+                Text("Continue")
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.purple)
+                    .cornerRadius(8)
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ô                  ‰     com.apple.lastuseddate#PS       Ù   â  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   ë‚g    ‡'t    Ú6ëé“JªNƒ/°è |ª<oÿuñ‹µ‡5ä¡–¨	^œßsÖúâú©y:à∑∂êLåÕh’ÎriÌ“—LE˘–¬› €VÄ)iDÔ-‘c•ΩWG|{ ;qóGSÚ˜'ôßqﬂhx	£˝€O∂ö™Ü˜^ÖxÛ!Ú}ÂÅcä=ΩÈhJ1<‡!$ƒ                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   Iç‚g    ∏˚º    Ú∞|å=◊†K»ÛÙø˚.»Ê!Tˇ§~ç¡∞“;‰ÿîknåœµ*9Ô-∞C
+ﬁôìZ6¡OßcMG≥ì¯/ºò2ô1+(π®ëñHY—ˆ∑ÑáF¡ﬁƒ ÏÃ&ø∆Bñ0^˘YWb§’…R∂¥—OT™AzœiÄ0„À÷4zh†^6,‚E˜ﬁA•>ÚMπÈ{	hÔ˘ÿ∂a48                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇimport Foundation
+
+struct HairItem: Identifiable {
+    let id = UUID()
+    let name: String
+    let image: String?
+    let prompt: String
+}
+
+struct BeautyDataPrompts {
+    static let categories = [
+        "Hairstyle",
+        "Hair Color",
+        "Wardrobe",
+        "Expressions",
+        "Filter Fusion",
+        "Background Changer",
+        "Portrait Perfection",
+        "Motion Effects",
+        "Collage Crafter",
+        "Text & Hashtag Stylizer",
+        "Professions",
+        "Animals",
+        "Places",
+        "Adventures"
+    ]
+    
+    static let items: [String: [HairItem]] = [
+        "Hairstyle": [
+            HairItem(name: "Long Straight", image: nil, prompt: "Make the hair long and straight"),
+            HairItem(name: "Bob Cut", image: nil, prompt: "Change to bob cut hairstyle"),
+            HairItem(name: "Wavy", image: nil, prompt: "Make the hair wavy and voluminous"),
+            HairItem(name: "Hippie Perm", image: nil, prompt: "Transform to hippie perm style"),
+            HairItem(name: "Full Bangs", image: nil, prompt: "Add full bangs to the hairstyle"),
+            HairItem(name: "Curly", image: nil, prompt: "Transform hair into loose, natural curls"),
+            HairItem(name: "Pixie Cut", image: nil, prompt: "Switch to a trendy pixie cut hairstyle"),
+            // New items
+            HairItem(name: "Messy Bun", image: nil, prompt: "Do a messy bun"),
+            HairItem(name: "Braided", image: nil, prompt: "Try a simple braid"),
+            HairItem(name: "Ponytail", image: nil, prompt: "Switch to a ponytail"),
+            HairItem(name: "Side Sweep", image: nil, prompt: "Style with side sweep"),
+            HairItem(name: "Top Knot", image: nil, prompt: "Rock a top knot"),
+            HairItem(name: "Layered", image: nil, prompt: "Add layered cuts"),
+            HairItem(name: "Asymmetrical", image: nil, prompt: "Go for an asymmetrical cut"),
+            HairItem(name: "Fishtail Braid", image: nil, prompt: "Try a fishtail braid"),
+            HairItem(name: "Undercut", image: nil, prompt: "Add a trendy undercut"),
+            HairItem(name: "Spiral Curls", image: nil, prompt: "Rock spiral curls")
+        ],
+        "Hair Color": [
+            HairItem(name: "Blonde", image: nil, prompt: "Change hair color to blonde"),
+            HairItem(name: "Brunette", image: nil, prompt: "Change hair color to brunette"),
+            HairItem(name: "Red", image: nil, prompt: "Change hair color to vibrant red"),
+            HairItem(name: "Black", image: nil, prompt: "Change hair color to black"),
+            HairItem(name: "Silver", image: nil, prompt: "Change hair color to gray/silver"),
+            HairItem(name: "Pastel Pink", image: nil, prompt: "Change hair color to soft pastel pink"),
+            HairItem(name: "Electric Blue", image: nil, prompt: "Change hair color to vibrant electric blue"),
+            // New items
+            HairItem(name: "Rose Gold", image: nil, prompt: "Change hair color togold"),
+            HairItem(name: "Platinum", image: nil, prompt: "Change hair color to platinum blonde"),
+            HairItem(name: "Auburn", image: nil, prompt: "Change hair color to auburn shades"),
+            HairItem(name: "Copper", image: nil, prompt: "Change hair color to copper tones"),
+            HairItem(name: "Jet Black", image: nil, prompt: "Change hair color to jet black"),
+            HairItem(name: "Lilac", image: nil, prompt: "Change hair color to lilac"),
+            HairItem(name: "Mint", image: nil, prompt: "Change hair color to mint tones"),
+            HairItem(name: "Neon Green", image: nil, prompt: "Change hair color to Bright neon green"),
+            HairItem(name: "Sunset Ombre", image: nil, prompt: "Change hair color to sunset ombre"),
+            HairItem(name: "Icy Blue", image: nil, prompt: "Change hair color to icy blue hues")
+        ],
+        "Wardrobe": [
+            HairItem(name: "Casual Chic", image: nil, prompt: "Transform into a casual chic outfit in one tap"),
+            HairItem(name: "Formal Elegance", image: nil, prompt: "Switch to an elegant formal ensemble effortlessly"),
+            HairItem(name: "Sporty", image: nil, prompt: "Adopt a sporty and dynamic look"),
+            HairItem(name: "Vintage", image: nil, prompt: "Embrace a timeless vintage wardrobe style"),
+            HairItem(name: "Urban Street", image: nil, prompt: "Show off an edgy urban street style"),
+            HairItem(name: "Bohemian", image: nil, prompt: "Adopt a free-spirited bohemian wardrobe style"),
+            HairItem(name: "Business Casual", image: nil, prompt: "Switch to a sharp business casual outfit"),
+            // New items
+            HairItem(name: "Edgy Rock", image: nil, prompt: "Rock edgy vibes"),
+            HairItem(name: "Summer Vibes", image: nil, prompt: "Wear summer chic"),
+            HairItem(name: "Retro", image: nil, prompt: "Go retro style"),
+            HairItem(name: "Glam Night", image: nil, prompt: "Glam up for night"),
+            HairItem(name: "Cozy Sweater", image: nil, prompt: "Sport a cozy sweater"),
+            HairItem(name: "Streetwear", image: nil, prompt: "Try cool streetwear"),
+            HairItem(name: "Festival", image: nil, prompt: "Festival-ready look"),
+            HairItem(name: "Minimalist", image: nil, prompt: "Keep it minimalist"),
+            HairItem(name: "Punk", image: nil, prompt: "Adopt a punk look"),
+            HairItem(name: "Casual Denim", image: nil, prompt: "Go with denim style")
+        ],
+        "Expressions": [
+            HairItem(name: "Happy Smile", image: nil, prompt: "Apply a cheerful, smiling expression"),
+            HairItem(name: "Serene", image: nil, prompt: "Adopt a calm and serene facial expression"),
+            HairItem(name: "Playful", image: nil, prompt: "Show a playful and engaging expression"),
+            HairItem(name: "Confident", image: nil, prompt: "Convey a confident and assertive look"),
+            HairItem(name: "Mysterious", image: nil, prompt: "Add a touch of mystery to your expression"),
+            HairItem(name: "Surprised", image: nil, prompt: "Convey a surprised and animated expression"),
+            HairItem(name: "Flirty", image: nil, prompt: "Apply a subtle flirty look to your face"),
+            // New items
+            HairItem(name: "Sassy", image: nil, prompt: "Show a sassy smirk"),
+            HairItem(name: "Cool", image: nil, prompt: "Stay cool and calm"),
+            HairItem(name: "Dreamy", image: nil, prompt: "Look dreamy and soft"),
+            HairItem(name: "Cheeky", image: nil, prompt: "Give a cheeky grin"),
+            HairItem(name: "Bold", image: nil, prompt: "Exude bold energy"),
+            HairItem(name: "Gleeful", image: nil, prompt: "Display gleeful joy"),
+            HairItem(name: "Relaxed", image: nil, prompt: "Keep a relaxed look"),
+            HairItem(name: "Quirky", image: nil, prompt: "Show quirky vibes"),
+            HairItem(name: "Energetic", image: nil, prompt: "Radiate energetic vibes"),
+            HairItem(name: "Smirking", image: nil, prompt: "Flash a playful smirk")
+        ],
+        "Filter Fusion": [
+            HairItem(name: "Artistic Blend", image: nil, prompt: "Blend multiple artistic filters for a unique look"),
+            HairItem(name: "Vintage Vibes", image: nil, prompt: "Mix retro and modern filters for vintage vibes"),
+            HairItem(name: "Cinematic Look", image: nil, prompt: "Blend cinematic filters for drama"),
+            HairItem(name: "Dreamy Glow", image: nil, prompt: "Combine soft filters for a dreamy glow"),
+            HairItem(name: "Bold Contrast", image: nil, prompt: "Merge high contrast for impact"),
+            HairItem(name: "Color Pop", image: nil, prompt: "Fuse vibrant filters for pop colors"),
+            HairItem(name: "Monochrome Magic", image: nil, prompt: "Blend B&W with a twist"),
+            // New items
+            HairItem(name: "Glitter Spark", image: nil, prompt: "Add glitter spark filters"),
+            HairItem(name: "Neon Burst", image: nil, prompt: "Fuse neon burst effects"),
+            HairItem(name: "Soft Haze", image: nil, prompt: "Apply a soft haze filter"),
+            HairItem(name: "Retro Pop", image: nil, prompt: "Use retro pop effects"),
+            HairItem(name: "Light Leak", image: nil, prompt: "Blend in light leak"),
+            HairItem(name: "Funky Frame", image: nil, prompt: "Try a funky frame filter"),
+            HairItem(name: "Pastel Dream", image: nil, prompt: "Use pastel dream vibes"),
+            HairItem(name: "Shadow Play", image: nil, prompt: "Mix in shadow play"),
+            HairItem(name: "Vivid Boost", image: nil, prompt: "Boost with vivid filters"),
+            HairItem(name: "Crystal Clear", image: nil, prompt: "Opt for a crystal clear filter")
+        ],
+        "Background Changer": [
+            HairItem(name: "Dynamic Backdrop", image: nil, prompt: "Swap dull backdrops for dynamic scenes"),
+            HairItem(name: "Urban Skyline", image: nil, prompt: "Replace with a modern urban skyline"),
+            HairItem(name: "Nature Escape", image: nil, prompt: "Switch to a serene natural landscape"),
+            HairItem(name: "Abstract Art", image: nil, prompt: "Change to an abstract design"),
+            HairItem(name: "Beach Paradise", image: nil, prompt: "Transform into a beach scene"),
+            HairItem(name: "Cosmic Space", image: nil, prompt: "Set a cosmic background"),
+            HairItem(name: "Studio Setting", image: nil, prompt: "Use a minimalist studio background"),
+            // New items
+            HairItem(name: "City Lights", image: nil, prompt: "Swap to city lights"),
+            HairItem(name: "Countryside", image: nil, prompt: "Switch to countryside view"),
+            HairItem(name: "Night Sky", image: nil, prompt: "Set a starry night sky"),
+            HairItem(name: "Rainbow", image: nil, prompt: "Add a rainbow background"),
+            HairItem(name: "Modern Loft", image: nil, prompt: "Go for a modern loft"),
+            HairItem(name: "Pastel Wall", image: nil, prompt: "Switch to a pastel wall"),
+            HairItem(name: "Neon City", image: nil, prompt: "Swap to neon city"),
+            HairItem(name: "Zen Garden", image: nil, prompt: "Choose a zen garden"),
+            HairItem(name: "Seaside", image: nil, prompt: "Use a seaside view"),
+            HairItem(name: "Graffiti", image: nil, prompt: "Switch to graffiti art")
+        ],
+        "Portrait Perfection": [
+            HairItem(name: "Selfie Enhancer", image: nil, prompt: "Enhance selfies with perfect lighting"),
+            HairItem(name: "Flawless Skin", image: nil, prompt: "Smooth and perfect your skin"),
+            HairItem(name: "Eye Catcher", image: nil, prompt: "Make your eyes pop"),
+            HairItem(name: "Lip Pop", image: nil, prompt: "Boost lip color instantly"),
+            HairItem(name: "Face Sculpt", image: nil, prompt: "Refine your facial contours"),
+            HairItem(name: "Brighten Up", image: nil, prompt: "Brighten and add clarity"),
+            HairItem(name: "Natural Radiance", image: nil, prompt: "Enhance natural features"),
+            // New items
+            HairItem(name: "Clear Complexion", image: nil, prompt: "Clear up your skin"),
+            HairItem(name: "Smooth Contours", image: nil, prompt: "Smooth out your contours"),
+            HairItem(name: "Eye Sparkle", image: nil, prompt: "Add sparkle to your eyes"),
+            HairItem(name: "Lip Gloss", image: nil, prompt: "Shine with lip gloss"),
+            HairItem(name: "Glow Up", image: nil, prompt: "Get that glow up"),
+            HairItem(name: "Fresh Look", image: nil, prompt: "Enhance your fresh look"),
+            HairItem(name: "Radiant Aura", image: nil, prompt: "Boost your radiant aura"),
+            HairItem(name: "Flawless Filter", image: nil, prompt: "Apply a flawless filter"),
+            HairItem(name: "Vivid Eyes", image: nil, prompt: "Enhance vivid eyes"),
+            HairItem(name: "Perfect Pout", image: nil, prompt: "Define your pout")
+        ],
+        "Motion Effects": [
+            HairItem(name: "Dynamic Motion", image: nil, prompt: "Add dynamic motion effects"),
+            HairItem(name: "Subtle Blur", image: nil, prompt: "Apply a soft motion blur"),
+            HairItem(name: "Flowing Light", image: nil, prompt: "Add flowing light effects"),
+            HairItem(name: "Speed Trail", image: nil, prompt: "Create motion trails"),
+            HairItem(name: "Ripple Effect", image: nil, prompt: "Simulate a ripple effect"),
+            HairItem(name: "Vivid Sparks", image: nil, prompt: "Overlay vivid sparks"),
+            HairItem(name: "Glide Transition", image: nil, prompt: "Smoothly blend motion elements"),
+            // New items
+            HairItem(name: "Quick Zoom", image: nil, prompt: "Add a quick zoom"),
+            HairItem(name: "Time Warp", image: nil, prompt: "Try a time warp effect"),
+            HairItem(name: "Slide Shift", image: nil, prompt: "Use a slide shift"),
+            HairItem(name: "Bouncy Beat", image: nil, prompt: "Sync with a bouncy beat"),
+            HairItem(name: "Flash Flicker", image: nil, prompt: "Apply a flash flicker"),
+            HairItem(name: "Motion Burst", image: nil, prompt: "Create a motion burst"),
+            HairItem(name: "Wave Motion", image: nil, prompt: "Use wave motion"),
+            HairItem(name: "Strobe Light", image: nil, prompt: "Add strobe light flash"),
+            HairItem(name: "Glitch Pop", image: nil, prompt: "Try a glitch pop effect"),
+            HairItem(name: "Vibe Spin", image: nil, prompt: "Spin with vibe motion")
+        ],
+        "Collage Crafter": [
+            HairItem(name: "Stylish Collage", image: nil, prompt: "Arrange photos into a stylish collage"),
+            HairItem(name: "Grid Layout", image: nil, prompt: "Organize photos in a grid"),
+            HairItem(name: "Freestyle Arrangement", image: nil, prompt: "Arrange photos creatively"),
+            HairItem(name: "Story Montage", image: nil, prompt: "Compile photos into a montage"),
+            HairItem(name: "Thematic Collage", image: nil, prompt: "Create a themed collage"),
+            HairItem(name: "Artistic Mosaic", image: nil, prompt: "Craft an artistic mosaic"),
+            HairItem(name: "Dynamic Layers", image: nil, prompt: "Layer photos dynamically"),
+            // New items
+            HairItem(name: "Photo Burst", image: nil, prompt: "Create a photo burst"),
+            HairItem(name: "Snap Mix", image: nil, prompt: "Mix snaps creatively"),
+            HairItem(name: "Pic Grid", image: nil, prompt: "Arrange pics in a grid"),
+            HairItem(name: "Frame Play", image: nil, prompt: "Play with frame styles"),
+            HairItem(name: "Quick Collage", image: nil, prompt: "Craft a quick collage"),
+            HairItem(name: "Layout Love", image: nil, prompt: "Love your layout"),
+            HairItem(name: "Instant Montage", image: nil, prompt: "Make an instant montage"),
+            HairItem(name: "Creative Cluster", image: nil, prompt: "Cluster photos stylishly"),
+            HairItem(name: "Vibe Collage", image: nil, prompt: "Blend your vibe collage"),
+            HairItem(name: "Modern Patchwork", image: nil, prompt: "Design a modern patchwork")
+        ],
+        "Text & Hashtag Stylizer": [
+            HairItem(name: "Dynamic Text", image: nil, prompt: "Generate dynamic text overlays"),
+            HairItem(name: "Bold Caption", image: nil, prompt: "Create bold text captions"),
+            HairItem(name: "Elegant Script", image: nil, prompt: "Apply elegant script fonts"),
+            HairItem(name: "Hashtag Pop", image: nil, prompt: "Design catchy hashtag overlays"),
+            HairItem(name: "Animated Text", image: nil, prompt: "Animate your text"),
+            HairItem(name: "Shadow Effect", image: nil, prompt: "Add a shadow to text"),
+            HairItem(name: "Color Gradient", image: nil, prompt: "Apply a color gradient to text"),
+            // New items
+            HairItem(name: "Fresh Fonts", image: nil, prompt: "Switch up with fresh fonts"),
+            HairItem(name: "Quick Tag", image: nil, prompt: "Add a quick tag"),
+            HairItem(name: "Text Swipe", image: nil, prompt: "Swipe in cool text"),
+            HairItem(name: "Hashtag Wave", image: nil, prompt: "Ride the hashtag wave"),
+            HairItem(name: "Font Flash", image: nil, prompt: "Flash a bold font"),
+            HairItem(name: "Simple Script", image: nil, prompt: "Use simple script"),
+            HairItem(name: "Text Punch", image: nil, prompt: "Give text a punch"),
+            HairItem(name: "Hashtag Hype", image: nil, prompt: "Boost hashtag hype"),
+            HairItem(name: "Smooth Overlay", image: nil, prompt: "Overlay text smoothly"),
+            HairItem(name: "Modern Tag", image: nil, prompt: "Style with modern tag")
+        ],
+        "Professions": [
+            HairItem(name: "Doctor", image: nil, prompt: "Adopt a doctor's look"),
+            HairItem(name: "Chef", image: nil, prompt: "Transform into a chef"),
+            HairItem(name: "Artist", image: nil, prompt: "Embrace an artist vibe"),
+            HairItem(name: "Business Executive", image: nil, prompt: "Sport a business suit"),
+            HairItem(name: "Engineer", image: nil, prompt: "Rock an engineer style"),
+            HairItem(name: "Lawyer", image: nil, prompt: "Show a lawyer's look"),
+            HairItem(name: "Military", image: nil, prompt: "Exude military discipline"),
+            // New items
+            HairItem(name: "Teacher", image: nil, prompt: "Show a teacher vibe"),
+            HairItem(name: "Musician", image: nil, prompt: "Rock a musician look"),
+            HairItem(name: "Pilot", image: nil, prompt: "Adopt a pilot style"),
+            HairItem(name: "Nurse", image: nil, prompt: "Wear a nurse uniform"),
+            HairItem(name: "Writer", image: nil, prompt: "Get a writer's touch"),
+            HairItem(name: "Designer", image: nil, prompt: "Style as a designer"),
+            HairItem(name: "Architect", image: nil, prompt: "Show an architect look"),
+            HairItem(name: "Photographer", image: nil, prompt: "Snap a photographer vibe"),
+            HairItem(name: "Dancer", image: nil, prompt: "Exude dancer flair"),
+            HairItem(name: "Entrepreneur", image: nil, prompt: "Show entrepreneur energy")
+        ],
+        "Animals": [
+            HairItem(name: "Cat Elegance", image: nil, prompt: "Add a sleek cat"),
+            HairItem(name: "Dog Charm", image: nil, prompt: "Add a playful dog"),
+            HairItem(name: "Lion's Mane", image: nil, prompt: "Add a bold lion"),
+            HairItem(name: "Fox Features", image: nil, prompt: "Add a clever fox"),
+            HairItem(name: "Rabbit Softness", image: nil, prompt: "Add a gentle rabbit"),
+            HairItem(name: "Panda Cool", image: nil, prompt: "Add a relaxed panda"),
+            HairItem(name: "Eagle Vision", image: nil, prompt: "Add a fierce eagle"),
+            // New items
+            HairItem(name: "Butterfly", image: nil, prompt: "Add a cute butterfly"),
+            HairItem(name: "Penguin", image: nil, prompt: "Use a playful penguin"),
+            HairItem(name: "Koala", image: nil, prompt: "Bring in a chill koala"),
+            HairItem(name: "Horse", image: nil, prompt: "Show a noble horse"),
+            HairItem(name: "Swan", image: nil, prompt: "Add a graceful swan"),
+            HairItem(name: "Dolphin", image: nil, prompt: "Splash in a dolphin"),
+            HairItem(name: "Bear", image: nil, prompt: "Bring a cuddly bear"),
+            HairItem(name: "Parrot", image: nil, prompt: "Show a colorful parrot"),
+            HairItem(name: "Turtle", image: nil, prompt: "Add a chill turtle"),
+            HairItem(name: "Owl", image: nil, prompt: "Include a wise owl")
+        ],
+        "Places": [
+            HairItem(name: "Parisian Street", image: nil, prompt: "Set a chic Paris street"),
+            HairItem(name: "Tropical Paradise", image: nil, prompt: "Switch to a tropical vibe"),
+            HairItem(name: "Futuristic City", image: nil, prompt: "Adopt a futuristic cityscape"),
+            HairItem(name: "Mountain Retreat", image: nil, prompt: "Change to a mountain retreat"),
+            HairItem(name: "Desert Oasis", image: nil, prompt: "Transform to a desert oasis"),
+            HairItem(name: "Historic Castle", image: nil, prompt: "Set against a historic castle"),
+            HairItem(name: "Urban Graffiti", image: nil, prompt: "Embrace urban graffiti art"),
+            // New items
+            HairItem(name: "Beachfront", image: nil, prompt: "Set a beachfront scene"),
+            HairItem(name: "Snowy Village", image: nil, prompt: "Switch to a snowy village"),
+            HairItem(name: "Countryside Farm", image: nil, prompt: "Go for a farm vibe"),
+            HairItem(name: "Lakeside", image: nil, prompt: "Choose a lakeside view"),
+            HairItem(name: "City Park", image: nil, prompt: "Opt for a lively park"),
+            HairItem(name: "Rooftop", image: nil, prompt: "Set a rooftop vibe"),
+            HairItem(name: "Garden", image: nil, prompt: "Switch to a blooming garden"),
+            HairItem(name: "Harbor", image: nil, prompt: "Set a harbor backdrop"),
+            HairItem(name: "Festival Grounds", image: nil, prompt: "Set festive grounds"),
+            HairItem(name: "Canyon", image: nil, prompt: "Show a majestic canyon")
+        ],
+        "Adventures": [
+            HairItem(name: "Sky Jumping", image: nil, prompt: "Set a sky jumping thrill"),
+            HairItem(name: "Monk's Trail Hike", image: nil, prompt: "Try a monk's trail hike"),
+            HairItem(name: "Mountain Climb", image: nil, prompt: "Climb a rugged mountain"),
+            HairItem(name: "Jungle Safari", image: nil, prompt: "Embrace a jungle safari"),
+            HairItem(name: "Desert Rally", image: nil, prompt: "Hit a desert rally"),
+            HairItem(name: "Underwater Expedition", image: nil, prompt: "Dive into underwater fun"),
+            HairItem(name: "Snowboarding", image: nil, prompt: "Enjoy snowboarding thrills"),
+            // New items
+            HairItem(name: "Surfing", image: nil, prompt: "Catch a surfing wave"),
+            HairItem(name: "Road Trip", image: nil, prompt: "Hit the road trip"),
+            HairItem(name: "Camping", image: nil, prompt: "Go camping outdoors"),
+            HairItem(name: "Bungee Jump", image: nil, prompt: "Try bungee jumping"),
+            HairItem(name: "Scuba Dive", image: nil, prompt: "Dive into adventure"),
+            HairItem(name: "Hot Air Balloon", image: nil, prompt: "Fly in a hot air balloon"),
+            HairItem(name: "Zip Lining", image: nil, prompt: "Experience zip lining"),
+            HairItem(name: "Kayaking", image: nil, prompt: "Paddle with kayaking vibes"),
+            HairItem(name: "Hiking Trail", image: nil, prompt: "Hit the hiking trail"),
+            HairItem(name: "Skiing", image: nil, prompt: "Enjoy a skiing adventure")
+        ]
+    ]
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   8q‚g    DJ    Ú”∏ª™ª„ålùr[ˇ“9A˙uX>¬¶G UtŒOAvî≤±ÑwÚ®·Ÿ=ÎY˛éµ√_Ó$Õ Ça÷éñÏ%√n:π“D¯ëLe*˚´Ê11≈|z!±Ü˘Õê≠€_§°›=ˆ∆V„»∫úÑÃßPéùd•C∑ÊIx¿ T1ãläôêl“nr•¢V;„[?∑                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ//
+//  SubscriptionManager.swift
+//  HairStyle
+//
+//  Created by adam on 25/03/2025.
+//
+
+
+import StoreKit
+import SwiftUI
+
+@MainActor
+class SubscriptionManager: ObservableObject {
+    /// The subscription products fetched from StoreKit configuration
+    @Published var subscriptions: [Product] = []
+    
+    /// Keep track of purchased product identifiers
+    @Published var purchasedIdentifiers = Set<String>()
+    
+    /// Task to listen for any subscription updates
+    private var updates: Task<Void, Never>?
+    
+    /// Define your product IDs exactly as they appear in your StoreKit config
+    private let productIDs = [
+        "wbweek",  // replace with your actual weekly ID
+        "wbyear"   // replace with your actual annual ID
+    ]
+    
+    init() {
+        // Start listening for transaction updates
+        updates = listenForTransactions()
+        
+        // Immediately fetch products and update purchased info
+        Task {
+            await requestProducts()
+            await updatePurchasedIdentifiers()
+        }
+    }
+    
+    /// Request products from StoreKit
+    func requestProducts() async {
+        do {
+            let storeProducts = try await Product.products(for: productIDs)
+            subscriptions = storeProducts
+        } catch {
+            print("Failed to request products: \(error)")
+        }
+    }
+    
+    /// Listen for any transaction updates (e.g., renewals, cancellations)
+    private func listenForTransactions() -> Task<Void, Never> {
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            for await result in Transaction.updates {
+                do {
+                    let transaction = try await self.checkVerified(result)
+                    // If transaction is verified, apply changes
+                    await self.updatePurchasedIdentifiers()
+                    await transaction.finish()
+                } catch {
+                    print("Transaction failed verification")
+                }
+            }
+        }
+    }
+    
+    /// Update purchased identifiers from current entitlements
+    private func updatePurchasedIdentifiers() async {
+        purchasedIdentifiers.removeAll()
+        for await verificationResult in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(verificationResult)
+                purchasedIdentifiers.insert(transaction.productID)
+            } catch {
+                // Not verified
+            }
+        }
+    }
+    
+    /// Purchase a specific product
+    func purchase(_ product: Product) async throws -> StoreKit.Transaction? {
+        let result = try await product.purchase()
+        switch result {
+        case .success(let verification):
+            let transaction = try checkVerified(verification)
+            await transaction.finish()
+            await updatePurchasedIdentifiers()
+            return transaction
+        case .userCancelled, .pending:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+    
+    /// Verify the transaction with StoreKit
+    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        switch result {
+        case .unverified:
+            throw StoreError.failedVerification
+        case .verified(let safe):
+            return safe
+        }
+    }
+    
+    enum StoreError: Error {
+        case failedVerification
+    }
+}
+    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ô                  ‰     com.apple.lastuseddate#PS       Ù   â  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   ë‚g    É®O    Ú◊Ún\ cNz''åÊrQ§ê"%pïvÆˇv'Œ›\=çËë◊ﬁõÇ˘≠„Èi{¢1ÒÊÒ%^ÊÆÔû»7ÀZ%⁄åT;ãìfπ4zù@Ò⁄Ûi@IÄ‹Î´
+õà¿∑‹òduø£4‘ÉÙ\
+
+rô©–Ÿ⁄è(~ôÑ'Ÿ+—yÏìı§V                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   Ÿß‚g    ◊ñ3    Ú…ï~M€áÎFE±ﬂÌ$⁄XJEõ1À˜GÕTgá¯Cû™é)Ô˙ k…Å\ßçåx†ÚŸ·˘Ißπ†È]–⁄ç∆øvΩePsXñ£§c:}‹πa©≠IÊi-˘uôW*†1…tBHµ –„ªÅäÄ'ÒS—≈˘:¸j%9§k>õÓÜ)˛ßá7Ö´æ7aÈ{çπæ›"ù–                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ˘                  ‰     com.apple.lastuseddate#PS       Ù   È  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   _è‚g    QÃ$    Úß;|íŒÂ£ñêíﬁ$·∏¨ÛÉ&8U‚‘µ™èÍbW¨1 ˚ßy¡cå^Ø.nõTg p°X)°YáêãÑ@6=jtP∂É933‹è¥≠C°ªï Ãè°Ôåü”Z|ìˇC;„^õ‡oœ˜°ØáBÆ¬;≥ŸÁÏQXâz´¬@’cMä5‚SÒZít÷œ,ÉNI«.ÛÕäVg—)Pÿ√˜˝gﬁÔ¢˝6⁄Ôº\…ì=ª%{0~œ.Hs…î®õoÄΩƒNçb‚bπ∫âJ%WÙ(™∆n"≥˚ºA“!≥øYÃõRv                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇ    Mac OS X            	   2  ∞     ‚                                    ATTR      ‚   ‰   ©                  ‰     com.apple.lastuseddate#PS       Ù   ô  7com.apple.metadata:kMDLabel_saie3kslrnngdavwn24uy2pyaa   Uó‚g    +=ß2    ÚTŸ&·`≤‰æßÌ3œÌíÃ∞∂?Ó5äJÜÆÄÁ¬jÑ9bˆbÌ€∏™põ'ê•Ü“”Ö√Àµ√í m–3¨∏uÀ8”.’|p”úL“KsFçRŸ<ÒäVµ±’ZqÔãôRh#=“˜ñ/™¸qﬁâÛ∞3Dè‰Æ{ÃÓåΩ®¡Æ‘ı2gMˇ‹^ø$ÇŒﬂ<¬Dö                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  This resource fork intentionally left blank                                                                                                                                                                                                                            ˇˇimport SwiftUI
+import Vision
+import CoreML
+import CoreImage
+import UIKit
+import os
+
+// MARK: - CIImage Extension
+extension CIImage {
+    /// Returns a resized CIImage.
+    func resized(to size: CGSize) -> CIImage {
+        let scaleX = size.width / extent.width
+        let scaleY = size.height / extent.height
+        var outputImage = transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
+        // Reset the origin to (0,0)
+        outputImage = outputImage.transformed(by: CGAffineTransform(translationX: -outputImage.extent.origin.x,
+                                                                    y: -outputImage.extent.origin.y))
+        return outputImage
+    }
+}
+
+// MARK: - CIContext Extension
+extension CIContext {
+    /// Renders a CIImage to a new CVPixelBuffer.
+    func render(_ image: CIImage, pixelFormat: OSType) -> CVPixelBuffer? {
+        var outputBuffer: CVPixelBuffer!
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            Int(image.extent.width),
+            Int(image.extent.height),
+            pixelFormat,
+            nil,
+            &outputBuffer
+        )
+        guard status == kCVReturnSuccess, let pixelBuffer = outputBuffer else {
+            return nil
+        }
+        self.render(image, to: pixelBuffer)
+        return pixelBuffer
+    }
+}
