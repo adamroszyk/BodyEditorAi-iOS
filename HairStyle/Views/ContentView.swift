@@ -8,7 +8,7 @@ struct ContentView: View {
     @State private var showingImagePicker = false
     @State private var inputImage: UIImage?
     
-    // Slider controls (if you use a before/after slider)
+    // Slider controls
     @State private var sliderPosition: CGFloat = 0.5
     @State private var showSlider: Bool = false
     
@@ -35,11 +35,11 @@ struct ContentView: View {
                     PhotoWithRefreshOverlay(
                         originalImage: inputImage,
                         editedImage: viewModel.editedImage,
-                        depthMapImage: viewModel.depthMapImage, // New depth map overlay
+                        depthMapImage: viewModel.depthMapImage,
                         sliderPosition: $sliderPosition,
                         showSlider: $showSlider,
-                        onReplaceTap: { 
-                            showingImagePicker = true 
+                        onReplaceTap: {
+                            showingImagePicker = true
                             Task {
                                 loadImage()
                             }
@@ -48,10 +48,8 @@ struct ContentView: View {
                         onSaveTap: { showSaveSuccessAlert = false }
                     )
                     
-                    
                     Spacer(minLength: 0)
                 }
-                
             }
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
@@ -78,16 +76,15 @@ struct ContentView: View {
             } message: {
                 Text("Image saved successfully to your Photos.")
             }
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Toggle(isOn: $viewModel.isPublicSharing) {
-                        Text(viewModel.isPublicSharing ? "Share Generations Publicly: On" : "Share Generations Publicly: Off")
+                // Settings button in the upper left corner.
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink(destination: SettingsView(viewModel: viewModel, sliderPosition: $sliderPosition)) {
+                        Image(systemName: "gear")
                     }
-                    .font(.caption)
-                    .scaleEffect(0.78)
-                    .opacity(0.7)
-                    
+                }
+                // Feed icon in the upper right corner.
+                ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(destination: FeedView()) {
                         Image(systemName: "square.grid.2x2")
                     }

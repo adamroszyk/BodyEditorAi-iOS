@@ -7,7 +7,7 @@ import SwiftUI
 
 @main
 struct HairStyleApp: App {
-    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = true
+    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
     
     /// Create a single instance of SubscriptionManager
     @StateObject var subscriptionManager = SubscriptionManager()
