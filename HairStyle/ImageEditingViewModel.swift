@@ -168,14 +168,14 @@ class ImageEditingViewModel: ObservableObject {
                                 }
                                 
                                 // Only share publicly if the toggle is on.
-                                if self.isPublicSharing {
+                             /*   if self.isPublicSharing {
                                     CloudinaryManager.upload(image: image) { secureUrl in
                                         if let url = secureUrl {
                                             print("Image uploaded to Cloudinary: \(url)")
                                             // Optionally: save the URL for your feed if needed.
                                         }
                                     }
-                                }
+                                }*/
                             }
                         }
                     } else {

@@ -1,5 +1,5 @@
 {
-  "originHash" : "1f888acff43fd9814f126e12ccb10ec3374f2f88c6a7823c122c4c143dfec66c",
+  "originHash" : "3c5719655d17550227c22f9f281c6d4bb9ebb1684f0c4458ac94af06ca4b362b",
   "pins" : [
     {
       "identity" : "cloudinary_ios",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "215ea1db05e7f3c0212f3c9ad027cfd52c924545",
         "version" : "5.1.0"
+      }
+    },
+    {
+      "identity" : "inject",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzysztofzablocki/Inject.git",
+      "state" : {
+        "revision" : "728c56639ecb3df441d51d5bc6747329afabcfc9",
+        "version" : "1.5.2"
       }
     }
   ],

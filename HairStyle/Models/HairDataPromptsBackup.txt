@@ -27,7 +27,7 @@ struct BeautyDataPrompts {
     
     static let items: [String: [HairItem]] = [
         "Hairstyle": [
-            HairItem(name: "Long Straight", image: nil, prompt: "Respectfully enhance chest curvature"),
+            HairItem(name: "Long Straight", image: nil, prompt: "Make the hair long and straight"),
             HairItem(name: "Bob Cut", image: nil, prompt: "Change to bob cut hairstyle"),
             HairItem(name: "Wavy", image: nil, prompt: "Make the hair wavy and voluminous"),
             HairItem(name: "Hippie Perm", image: nil, prompt: "Transform to hippie perm style"),

@@ -6,11 +6,23 @@ struct BottomMenuView: View {
     @Binding var inputImage: UIImage?
     @Binding var sliderPosition: CGFloat
     
-    @State private var selectedCategory: String = "Hairstyle"
+    // drop the `private` here so we can initialize it
+    @State var selectedCategory: String
     @State private var selectedItemId: UUID?
-    
-    /// Tracks how many times the user has generated an image
     @State private var generationCount: Int = 0
+
+    /// Now put your init _inside_ the struct
+    init(
+      viewModel: ImageEditingViewModel,
+      inputImage: Binding<UIImage?>,
+      sliderPosition: Binding<CGFloat>,
+      initialCategory: String = "Hairstyle"  // default so old calls still compile
+    ) {
+      self.viewModel = viewModel
+      self._inputImage = inputImage
+      self._sliderPosition = sliderPosition
+      self._selectedCategory = State(initialValue: initialCategory)
+    }
     
     var body: some View {
         VStack(spacing: 0) {

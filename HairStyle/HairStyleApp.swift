@@ -15,7 +15,7 @@ struct HairStyleApp: App {
     var body: some Scene {
         WindowGroup {
             if hasCompletedOnboarding {
-                ContentView()
+                CatalogView()
                     .environmentObject(subscriptionManager)
             } else {
                 OnboardingView()

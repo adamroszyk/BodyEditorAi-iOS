@@ -237,8 +237,6 @@ struct AspectLimitedComparisonView: View {
                     }
                 }
             }
-            .cornerRadius(15)
-            .shadow(color: .black, radius: 10, x: 10, y: 10)
             .onTapGesture {
                 withAnimation {
                     showSlider.toggle()

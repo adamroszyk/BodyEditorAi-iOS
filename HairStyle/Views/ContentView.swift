@@ -1,116 +1,101 @@
 import SwiftUI
-import PhotosUI
-import Vision
 
 struct ContentView: View {
-    @StateObject var viewModel = ImageEditingViewModel()
-    
-    @State private var showingImagePicker = false
+    @StateObject private var viewModel = ImageEditingViewModel()
     @State private var inputImage: UIImage?
-    
-    // Slider controls
+    @State private var showingImagePicker = false
     @State private var sliderPosition: CGFloat = 0.5
     @State private var showSlider: Bool = false
-    
-    // State variable for showing a save-success alert
-    @State private var showSaveSuccessAlert: Bool = false
-    
+    @State private var showSaveSuccessAlert = false
+
     var body: some View {
-        NavigationView {
-            ZStack {
-                if let image = inputImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .blur(radius: 30)
-                        .opacity(0.6)
-                        .ignoresSafeArea()
-                } else {
-                    Color.pink.opacity(0.1).ignoresSafeArea()
-                }
-                
-                VStack {
-                    Spacer(minLength: 0)
-                    
-                    PhotoWithRefreshOverlay(
-                        originalImage: inputImage,
-                        editedImage: viewModel.editedImage,
-                        depthMapImage: viewModel.depthMapImage,
-                        sliderPosition: $sliderPosition,
-                        showSlider: $showSlider,
-                        onReplaceTap: {
-                            showingImagePicker = true
-                            Task {
-                                loadImage()
-                            }
-                        },
-                        onAddTap: { showingImagePicker = true },
-                        onSaveTap: { showSaveSuccessAlert = false }
-                    )
-                    
-                    Spacer(minLength: 0)
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .safeAreaInset(edge: .bottom) {
+        ZStack {
+            // MARK: Background covers full screen
+            backgroundView
+                .ignoresSafeArea()
+
+            // MARK: Photo (maintain aspect ratio, no distortion)
+            PhotoWithRefreshOverlay(
+                originalImage: inputImage,
+                editedImage: viewModel.editedImage,
+                depthMapImage: viewModel.depthMapImage,
+                sliderPosition: $sliderPosition,
+                showSlider: $showSlider,
+                onReplaceTap: pickImage,
+                onAddTap: pickImage,
+                onSaveTap: saveImage
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // MARK: Bottom Controls Panel
+            VStack {
+                Spacer()
                 BottomMenuView(
                     viewModel: viewModel,
                     inputImage: $inputImage,
                     sliderPosition: $sliderPosition
                 )
-                .frame(height: 160)
-            }
-            .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
-                ImagePicker(image: $inputImage)
-            }
-            .alert("Error", isPresented: Binding<Bool>(
-                get: { !viewModel.errorMessage.isEmpty },
-                set: { _ in viewModel.errorMessage = "" }
-            )) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(viewModel.errorMessage)
-            }
-            .alert("Saved", isPresented: $showSaveSuccessAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Image saved successfully to your Photos.")
-            }
-            .toolbar {
-                // Settings button in the upper left corner.
-                ToolbarItem(placement: .navigationBarLeading) {
-                    NavigationLink(destination: SettingsView(viewModel: viewModel, sliderPosition: $sliderPosition)) {
-                        Image(systemName: "gear")
-                    }
-                }
-                // Feed icon in the upper right corner.
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: FeedView()) {
-                        Image(systemName: "square.grid.2x2")
-                    }
-                }
+                .padding()
+                .background(.ultraThinMaterial)
+                .cornerRadius(16)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
-        .task {
-            do {
-                try await viewModel.loadModel()
-            } catch {
-                viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)"
+        // allow background to extend under status bar
+        .edgesIgnoringSafeArea(.top)
+        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
+            ImagePicker(image: $inputImage)
+        }
+        .alert("Saved", isPresented: $showSaveSuccessAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Image saved successfully to your Photos.")
+        }
+        .onAppear {
+            Task {
+                do { try await viewModel.loadModel() }
+                catch { viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)" }
             }
         }
     }
-    
-    func loadImage() {
-        if let selectedImage = inputImage {
-            viewModel.editedImage = selectedImage
-            viewModel.textResult = ""
-            viewModel.errorMessage = ""
-            
-            // Generate the depth map asynchronously after selecting an image.
-            Task {
-                await viewModel.generateDepthMap(for: selectedImage)
+}
+
+private extension ContentView {
+    var backgroundView: some View {
+        Group {
+            if let image = inputImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: 120)
+                    .overlay(Color.black.opacity(0.4))
+            } else {
+                Color.black.opacity(0.6)
             }
         }
+    }
+
+    func pickImage() {
+        showingImagePicker = true
+    }
+
+    func loadImage() {
+        guard let selected = inputImage else { return }
+        viewModel.editedImage = selected
+        viewModel.errorMessage = ""
+        Task { await viewModel.generateDepthMap(for: selected) }
+    }
+
+    func saveImage() {
+        guard let imageToSave = viewModel.editedImage else { return }
+        UIImageWriteToSavedPhotosAlbum(imageToSave, nil, nil, nil)
+        showSaveSuccessAlert = true
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
     }
 }

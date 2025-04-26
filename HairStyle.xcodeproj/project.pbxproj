@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7C3947E12D9353D6005AE76A /* Cloudinary in Frameworks */ = {isa = PBXBuildFile; productRef = 7C3947E02D9353D6005AE76A /* Cloudinary */; };
+		7CC8218B2DBBD55A00B06962 /* Inject in Frameworks */ = {isa = PBXBuildFile; productRef = 7CC8218A2DBBD55A00B06962 /* Inject */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -33,16 +34,30 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Models/HairDataPromptsBackup.txt,
+				Views/MainImageArea.swift.txt,
 			);
 			target = 7EEDD0202D8ADA110080D4FF /* HairStyle */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		7CC8217D2DBAC90100B06962 /* Exceptions for "HairStyle" folder in "Compile Sources" phase from "HairStyle" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 7EEDD01D2D8ADA110080D4FF /* Sources */;
+			membershipExceptions = (
+				Models/HairDataPromptsBackup.txt,
+				Views/MainImageArea.swift.txt,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7EEDD0232D8ADA110080D4FF /* HairStyle */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				7C3947212D934896005AE76A /* Exceptions for "HairStyle" folder in "HairStyle" target */,
+				7CC8217D2DBAC90100B06962 /* Exceptions for "HairStyle" folder in "Compile Sources" phase from "HairStyle" target */,
 			);
 			path = HairStyle;
 			sourceTree = "<group>";
@@ -55,6 +70,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7C3947E12D9353D6005AE76A /* Cloudinary in Frameworks */,
+				7CC8218B2DBBD55A00B06962 /* Inject in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,6 +115,7 @@
 			name = HairStyle;
 			packageProductDependencies = (
 				7C3947E02D9353D6005AE76A /* Cloudinary */,
+				7CC8218A2DBBD55A00B06962 /* Inject */,
 			);
 			productName = HairStyle;
 			productReference = 7EEDD0212D8ADA110080D4FF /* HairStyle.app */;
@@ -130,6 +147,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				7C3947DF2D9353D6005AE76A /* XCRemoteSwiftPackageReference "cloudinary_ios" */,
+				7CC821892DBBD55A00B06962 /* XCRemoteSwiftPackageReference "Inject" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7EEDD0222D8ADA110080D4FF /* Products */;
@@ -293,8 +311,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HairStyle/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Beauty Camera: WannaBe";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Allow if you want to save to your photos";
+				INFOPLIST_KEY_CFBundleDisplayName = "PicUp - Hot Ai Image Enhance";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app requires access to the photo library to save newly generated photos.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -305,7 +323,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = activeoutcome.WannaBe;
+				PRODUCT_BUNDLE_IDENTIFIER = activeoutcome.PicUp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -325,8 +343,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HairStyle/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Beauty Camera: WannaBe";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Allow if you want to save to your photos";
+				INFOPLIST_KEY_CFBundleDisplayName = "PicUp - Hot Ai Image Enhance";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app requires access to the photo library to save newly generated photos.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -337,7 +355,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = activeoutcome.WannaBe;
+				PRODUCT_BUNDLE_IDENTIFIER = activeoutcome.PicUp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -377,6 +395,14 @@
 				minimumVersion = 5.1.0;
 			};
 		};
+		7CC821892DBBD55A00B06962 /* XCRemoteSwiftPackageReference "Inject" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/krzysztofzablocki/Inject.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.2;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -384,6 +410,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7C3947DF2D9353D6005AE76A /* XCRemoteSwiftPackageReference "cloudinary_ios" */;
 			productName = Cloudinary;
+		};
+		7CC8218A2DBBD55A00B06962 /* Inject */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7CC821892DBBD55A00B06962 /* XCRemoteSwiftPackageReference "Inject" */;
+			productName = Inject;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

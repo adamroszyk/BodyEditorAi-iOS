@@ -5,7 +5,7 @@ import SwiftUI
 import Vision
 import SwiftUI
 import Vision
-
+/*
 struct MainImageArea: View {
     @ObservedObject var viewModel: ImageEditingViewModel
     @Binding var showingImagePicker: Bool
@@ -235,3 +235,4 @@ struct RefreshButton: View {
         .padding(16)
     }
 }
+*/
