@@ -1,4 +1,53 @@
-2025-04-30 10:49:38
+2025-04-30 11:37:28
+//
+//  LoadingMessages.swift
+//  HairStyle
+//
+//  Created by adam on 30/04/2025.
+//
+
+
+//  LoadingMessages.swift
+//  PicUp
+//  Generated 30‑04‑2025 – A sprinkle of Gen‑Z flavoured loading banter ✨
+//
+//  Call `LoadingMessages.random()` whenever you need a fresh status line.
+//  Example:
+//      Text(LoadingMessages.random())
+//
+//  The list can be expanded or localized later.
+
+import Foundation
+
+enum LoadingMessages {
+    static let all: [String] = [
+        "Casting ✨ filters… hold my boba!",
+        "Crunching pixels like kettle chips…",
+        "Tweaking the vibe parameters (scientifically, of course)…",
+        "GPU is doing burpees—almost done!",
+        "Uploading imagination to the cloud ☁️…",
+        "Painting happy little bytes…",
+        "Assembling AI drip, please stand by…",
+        "Turning coffee into gradients…",
+        "Charging the creativity capacitor ⚡️…",
+        "Optimizing the funniness algorithm…",
+        "Feeding hamsters more voltage…",
+        "Rendering in ✨ Ultra‑Mega‑1080p ✨…",
+        "Spinning up rainbow shaders…",
+        "Injecting extra serotonin into pixels…",
+        "Reticulating splines 2.0…",
+        "Aligning photonic chakras…",
+        "Manifesting your best self…",
+        "Negotiating with the color wheel…",
+        "Loading swag assets (almost there)…",
+        "Finalizing epicness—do not unplug!"
+    ]
+
+    /// Returns a random playful loading string.
+    static func random() -> String {
+        all.randomElement() ?? "Generating… hang tight!"
+    }
+}
 import SwiftUI
 
 /// The bottom action bar for the enhancement panel.
@@ -43,6 +92,91 @@ struct BottomBar: View {
         }
         .padding(.horizontal, 7)
         .padding(.bottom, 20)
+    }
+}
+import SwiftUI
+
+// MARK: – Photo / slider view
+ struct PhotoWithRefreshOverlay: View {
+    // Inputs
+    let originalImage: UIImage?
+    let editedImage: UIImage?
+    let depthMapImage: UIImage?
+    let isGenerating: Bool
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    let onReplaceTap: () -> Void
+    let onAddTap: () -> Void
+    let onSaveTap: () -> Void
+
+    // Zoom / pan state omitted for brevity – unchanged from earlier version
+
+    var body: some View {
+        ZStack {
+            contentView
+        }
+    }
+
+    @ViewBuilder private var contentView: some View {
+        if let orig = originalImage, let edit = editedImage {
+            Image(uiImage: edit).resizable().scaledToFit()
+        } else if let edit = editedImage {
+            Image(uiImage: edit).resizable().scaledToFit()
+        } else {
+            EmptyStateView(onAddTap: onAddTap, isGenerating: isGenerating)
+        }
+    }
+}
+
+// MARK: – Empty state
+private struct EmptyStateView: View {
+    let onAddTap: () -> Void
+    let isGenerating: Bool
+
+    var body: some View {
+        VStack {
+            Spacer()
+            if isGenerating {
+                Text(LoadingMessages.random())
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white)
+                    .padding()
+            } else {
+                Button(action: onAddTap) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "photo.fill.on.rectangle.fill").font(.system(size: 40))
+                        Text("Add Image +").font(.headline)
+                    }
+                    .foregroundColor(.black)
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 10)
+                }
+            }
+            Spacer()
+        }
+    }
+}
+
+// MARK: – Stub generation worker
+ enum ImageEditingWorker {
+    static func generate(input: UIImage, prompt: String) async -> UIImage? {
+        let vm = ImageEditingViewModel()
+        do {
+            try await vm.loadModel()
+            vm.editedImage = input
+            vm.prompt = prompt
+            await MainActor.run { vm.editImage() }
+            while await MainActor.run(body: { vm.isLoading }) {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            return await MainActor.run(body: { vm.editedImage })
+        } catch {
+            print("Generation failed: \(error)")
+            return nil
+        }
     }
 }
 import SwiftUI
@@ -179,9 +313,10 @@ private struct OptionPill: View {
 
 import SwiftUI
 
-// MARK: - PhotoContainerView
-struct PhotoContainerView: View {
+// MARK: – Photo container
+ struct PhotoContainerView: View {
     @Binding var inputImage: UIImage?
+    let isGenerating: Bool
     let editedImage: UIImage?
     let depthMapImage: UIImage?
     @Binding var sliderPosition: CGFloat
@@ -192,58 +327,83 @@ struct PhotoContainerView: View {
 
     var body: some View {
         ZStack {
-            backgroundView
-                .ignoresSafeArea()
-
+            backgroundView.ignoresSafeArea()
             PhotoWithRefreshOverlay(
                 originalImage: inputImage,
                 editedImage: editedImage,
                 depthMapImage: depthMapImage,
+                isGenerating: isGenerating,
                 sliderPosition: $sliderPosition,
                 showSlider: $showSlider,
                 onReplaceTap: onReplaceTap,
                 onAddTap: onAddTap,
                 onSaveTap: onSaveTap
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    @ViewBuilder
-    private var backgroundView: some View {
+    @ViewBuilder private var backgroundView: some View {
         if let img = inputImage {
-            Image(uiImage: img)
-                .resizable()
-                .scaledToFill()
-                .blur(radius: 120)
-                .overlay(Color.black.opacity(0.4))
+            Image(uiImage: img).resizable().scaledToFill().blur(radius: 120).overlay(Color.black.opacity(0.4))
         } else {
             Color.black.opacity(0.6)
         }
     }
 }
+//  GenView.swift
+//  PicUp
+//  Updated 30‑04‑2025 – parallel generation, live thumbnails, Gen‑Z share icon & back button, generation status text
+//
+//  ▸ Taps **Apply** → four images generated *in parallel*.
+//  ▸ Spinner overlays both the main preview and each thumbnail placeholder while its job runs.
+//  ▸ Thumbnails swap the main preview in‑place (no navigation push).
+//  ▸ During generation the “Add Image” button is replaced by a friendly status text.
+//  ▸ Replace presents the picker without wiping current state; cancel keeps UI intact.
+//  ▸ Back ↩︎ (top‑left) pops to category grid.
+//  ▸ Save + paper‑plane Share (top‑right).
+//
+//  NOTE: relies on a stub `ImageEditingWorker.generate` that you can swap with
+//  your real async API if available.
+
 import SwiftUI
-import StoreKit      // ← add
+import StoreKit
+import UIKit
 
+// MARK: – Generation‑slot model
+private struct GenerationSlot: Identifiable {
+    let id: Int
+    var image: UIImage? = nil
+    var isLoading: Bool = false
+}
 
-/// The main generation view, with a full-screen loading indicator and faster spinner.
+// MARK: – GenView
 struct GenView: View {
+    // MARK: Dependencies
     let section: String
-    @StateObject private var viewModel = ImageEditingViewModel()
-    @State private var selectedOption: EnhancementOption?
 
+    // MARK: View‑model
+    @StateObject private var viewModel = ImageEditingViewModel()
+
+    // MARK: UI state
+    @State private var selectedOption: EnhancementOption?
     @State private var inputImage: UIImage?
     @State private var showingImagePicker = false
     @State private var sliderPosition: CGFloat = 0.5
     @State private var showSlider = false
     @State private var showSaveSuccessAlert = false
-    @State private var isSpinning = false
-    
-    @Environment(\.dismiss) private var dismiss
-    @AppStorage("completedGenerationCount") private var completedGenerationCount = 0
-    @AppStorage("hasRequestedReview")       private var hasRequestedReview     = false
 
-    /// Enhancement options based on selected section
+    // Parallel‑generation slots
+    @State private var slots: [GenerationSlot] = []          // four slots when generation starts
+    @State private var currentDisplayIndex: Int? = nil       // which slot is shown full‑size
+
+    // Derived flags
+    private var isGenerating: Bool { slots.contains { $0.isLoading } }
+    private var hasGenerated: Bool { !slots.isEmpty }
+
+    // MARK: Environment
+    @Environment(\.dismiss) private var dismiss
+
+    // MARK: Enhancement options
     private var enhancementOptions: [EnhancementOption] {
         switch section {
         case "Chest":    return BodyEnhancementPrompts.breast
@@ -257,157 +417,209 @@ struct GenView: View {
         case "Face":     return BodyEnhancementPrompts.face
         case "Lips":     return BodyEnhancementPrompts.lips
         case "Waist":    return BodyEnhancementPrompts.waist
-        case "Legs":      return BodyEnhancementPrompts.leg
-        case "jewellery": return BodyEnhancementPrompts.jewellery
+        case "Legs":     return BodyEnhancementPrompts.leg
+        case "jewellery":return BodyEnhancementPrompts.jewellery
         case "Eyewear":  return BodyEnhancementPrompts.eyewear
         default:          return []
         }
     }
 
+    // MARK: Body
     var body: some View {
         ZStack {
-            // Content container, blurred & disabled when loading
-            ZStack(alignment: .top) {
-                GeometryReader { geo in
-                    PhotoContainerView(
-                        inputImage: $inputImage,
-                        editedImage: viewModel.editedImage,
-                        depthMapImage: viewModel.depthMapImage,
-                        sliderPosition: $sliderPosition,
-                        showSlider: $showSlider,
-                        onAddTap: pickImage,
-                        onReplaceTap: pickImage,
-                        onSaveTap: saveImage
+            GeometryReader { geo in
+                // Photo area
+                PhotoContainerView(
+                    inputImage: $inputImage,
+                    isGenerating: isGenerating,
+                    editedImage: mainDisplayedImage,
+                    depthMapImage: viewModel.depthMapImage,
+                    sliderPosition: $sliderPosition,
+                    showSlider: $showSlider,
+                    onAddTap: handleReplacePhoto,
+                    onReplaceTap: handleReplacePhoto,
+                    onSaveTap: saveImage
+                )
+                .frame(width: geo.size.width, height: geo.size.height)
+                .ignoresSafeArea()
+
+                // Top buttons
+                if inputImage != nil {
+                    TopButtons(
+                        onBack: { dismiss() },
+                        onReplace: handleReplacePhoto,
+                        onShare: shareImage,
+                        onSave: saveImage,
+                        topInset: -20
                     )
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .ignoresSafeArea()
+                    .padding(.horizontal, 16)
+                }
 
-                    if inputImage != nil {
-                        TopButtons(
-                            onReplace: pickImage,
-                            onSave: saveImage,
-                            topInset: -20
-                        )
-                        .padding(.horizontal, 16)
-                    }
-
-                    VStack {
-                        Spacer()
+                // Bottom controls
+                VStack(spacing: 8) {
+                    Spacer()
+                    if hasGenerated {
+                        ThumbnailsStripView(slots: slots) { idx in currentDisplayIndex = idx }
+                    } else {
                         EnhancementPanelView(
                             section: section,
                             options: enhancementOptions,
                             selectedOption: $selectedOption,
-                            applyAction: { viewModel.editImage() },
+                            applyAction: beginParallelGeneration,
                             cancelAction: { dismiss() }
                         )
-                        .frame(width: geo.size.width)
                     }
                 }
-            }
-            .blur(radius: viewModel.isLoading ? 12 : 0)
-            .disabled(viewModel.isLoading)
-            // Remove horizontal padding when loading to ensure full-width blur
-            .padding(.horizontal, viewModel.isLoading ? 0 : 8)
-
-            // Loading overlay with faster spinner
-            if viewModel.isLoading {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(2)
-                    //.rotationEffect(.degrees(isSpinning ? 360 : 0))
-                    .animation(.linear(duration: 0.6).repeatForever(autoreverses: false), value: isSpinning)
-                    .onAppear { isSpinning = true }
-                    
+                .frame(width: geo.size.width)
             }
         }
-        
         .navigationBarBackButtonHidden(true)
+        // Overlay spinner
+        .overlay(
+            Group {
+                if isGenerating {
+                    Color.black.opacity(0.35).ignoresSafeArea()
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(2)
+                }
+            }
+        )
+        // Image picker & alerts
         .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
             ImagePicker(image: $inputImage)
         }
         .alert("Saved", isPresented: $showSaveSuccessAlert) {
             Button("OK", role: .cancel) {}
-        } message: {
-            Text("Image saved successfully to your Photos.")
+        } message: { Text("Image saved successfully to your Photos.") }
+        // Lifecycle
+        .onAppear { configureOnAppear() }
+        .onChange(of: selectedOption) { viewModel.prompt = $0?.prompt ?? "" }
+    }
+
+    // MARK: Helpers
+    private var mainDisplayedImage: UIImage? {
+        if let idx = currentDisplayIndex, slots.indices.contains(idx) {
+            return slots[idx].image
         }
-        .onAppear {
-            Task {
-                do {
-                    try await viewModel.loadModel()
-                } catch {
-                    viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)"
+        return viewModel.editedImage
+    }
+
+    private func beginParallelGeneration() {
+        guard let base = inputImage, let prompt = selectedOption?.prompt else { return }
+        resetSlots()
+        slots = (0..<4).map { GenerationSlot(id: $0, isLoading: true) }
+        currentDisplayIndex = 0
+
+        Task.detached(priority: .userInitiated) {
+            await withTaskGroup(of: (Int, UIImage?).self) { group in
+                for idx in 0..<4 {
+                    group.addTask { (idx, await ImageEditingWorker.generate(input: base, prompt: prompt)) }
+                }
+                for await (idx, img) in group {
+                    await MainActor.run {
+                        slots[idx].image = img
+                        slots[idx].isLoading = false
+                    }
                 }
             }
-            selectedOption = enhancementOptions.first
-            viewModel.prompt = selectedOption?.prompt ?? ""
         }
-        .onChange(of: selectedOption) { new in
-                    viewModel.prompt = new?.prompt ?? ""
-        
-            guard new != nil else { return }          // ignore nil resets
-
-            // Increment and persist the completed-generation counter
-            completedGenerationCount += 1
-
-            // Ask for a rating *only* on the 3rd generation, and only once
-            if completedGenerationCount == 3 && !hasRequestedReview,
-               let scene = UIApplication.shared.connectedScenes
-                             .compactMap({ $0 as? UIWindowScene })
-                             .first(where: { $0.activationState == .foregroundActive }) {
-
-                SKStoreReviewController.requestReview(in: scene)
-                hasRequestedReview = true                   // never prompt again
-            }
-        }
-        
     }
 
-    private func pickImage() {
-        showingImagePicker = true
-    }
+    private func handleReplacePhoto() { showingImagePicker = true }
 
     private func loadImage() {
-        guard let img = inputImage else { return }
+        guard let img = inputImage else { return }          // Cancelled
         viewModel.editedImage = img
+        resetSlots()
     }
 
     private func saveImage() {
-        guard let img = viewModel.editedImage else { return }
+        guard let img = mainDisplayedImage else { return }
         UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
         showSaveSuccessAlert = true
     }
+
+    private func shareImage() {
+        guard let img = mainDisplayedImage else { return }
+        let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.windows.first?.rootViewController {
+            root.present(av, animated: true)
+        }
+    }
+
+    private func configureOnAppear() {
+        Task { try? await viewModel.loadModel() }
+        selectedOption = enhancementOptions.first
+        viewModel.prompt = selectedOption?.prompt ?? ""
+    }
+
+    private func resetSlots() {
+        slots.removeAll()
+        currentDisplayIndex = nil
+    }
 }
 
-// Top button row extracted
+// MARK: – Thumbnail strip
+private struct ThumbnailsStripView: View {
+    let slots: [GenerationSlot]
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(slots) { slot in
+                    ZStack {
+                        if let img = slot.image { Image(uiImage: img).resizable().aspectRatio(contentMode: .fill) }
+                        else { Color.gray.opacity(0.3) }
+                    }
+                    .frame(width: 70, height: 70)
+                    .clipped()
+                    .cornerRadius(12)
+                    .overlay { if slot.isLoading { ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)) } }
+                    .onTapGesture { if slot.image != nil { onSelect(slot.id) } }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
+    }
+}
+
+// MARK: – Top buttons
 private struct TopButtons: View {
+    let onBack: () -> Void
     let onReplace: () -> Void
+    let onShare: () -> Void
     let onSave: () -> Void
     let topInset: CGFloat
 
     var body: some View {
-        HStack {
-            Button(action: onReplace) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Circle())
-            }
+        HStack(spacing: 12) {
+            Button(action: onBack) { Image(systemName: "chevron.left").modifier(circleIcon) }
+            Button(action: onReplace) { Image(systemName: "arrow.triangle.2.circlepath").modifier(circleIcon) }
             Spacer()
-            Button(action: onSave) {
-                Image(systemName: "square.and.arrow.down")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Circle())
+            HStack(spacing: 12) {
+                Button(action: onShare) { Image(systemName: "paperplane.fill").modifier(circleIcon) }
+                Button(action: onSave) { Image(systemName: "square.and.arrow.down").modifier(circleIcon) }
             }
         }
         .padding(.top, topInset + 20)
+    }
+    private var circleIcon: some ViewModifier { CircleIcon() }
+}
+
+private struct CircleIcon: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 20, weight: .medium))
+            .foregroundColor(.white)
+            .frame(width: 36, height: 36)
+            .background(Color.black.opacity(0.6))
+            .clipShape(Circle())
     }
 }
 import SwiftUI

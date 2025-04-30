@@ -1,24 +1,37 @@
+//
+//  ContentView.swift
+//  PicUp
+//  Updated 30-04-2025 – passes `isGenerating` flag to the photo overlay
+//
+
 import SwiftUI
 
 struct ContentView: View {
+    // MARK: – View-model
     @StateObject private var viewModel = ImageEditingViewModel()
+
+    // MARK: – UI State
     @State private var inputImage: UIImage?
     @State private var showingImagePicker = false
     @State private var sliderPosition: CGFloat = 0.5
-    @State private var showSlider: Bool = false
+    @State private var showSlider = false
     @State private var showSaveSuccessAlert = false
+
+    // Derived flag
+    private var isGenerating: Bool { viewModel.isLoading }
 
     var body: some View {
         ZStack {
-            // MARK: Background covers full screen
+            // Background covers full screen
             backgroundView
                 .ignoresSafeArea()
 
-            // MARK: Photo (maintain aspect ratio, no distortion)
+            // Photo (maintain aspect ratio, no distortion)
             PhotoWithRefreshOverlay(
                 originalImage: inputImage,
                 editedImage: viewModel.editedImage,
                 depthMapImage: viewModel.depthMapImage,
+                isGenerating: isGenerating,          // ← NEW
                 sliderPosition: $sliderPosition,
                 showSlider: $showSlider,
                 onReplaceTap: pickImage,
@@ -27,7 +40,7 @@ struct ContentView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // MARK: Bottom Controls Panel
+            // Bottom Controls Panel
             VStack {
                 Spacer()
                 BottomMenuView(
@@ -42,13 +55,12 @@ struct ContentView: View {
                 .padding(.bottom, 8)
             }
         }
-        // allow background to extend under status bar
         .edgesIgnoringSafeArea(.top)
         .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
             ImagePicker(image: $inputImage)
         }
         .alert("Saved", isPresented: $showSaveSuccessAlert) {
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) { }
         } message: {
             Text("Image saved successfully to your Photos.")
         }
@@ -61,6 +73,7 @@ struct ContentView: View {
     }
 }
 
+// MARK: – Helpers
 private extension ContentView {
     var backgroundView: some View {
         Group {
@@ -76,12 +89,10 @@ private extension ContentView {
         }
     }
 
-    func pickImage() {
-        showingImagePicker = true
-    }
+    func pickImage() { showingImagePicker = true }
 
     func loadImage() {
-        guard let selected = inputImage else { return }
+        guard let selected = inputImage else { return }   // user cancelled
         viewModel.editedImage = selected
         viewModel.errorMessage = ""
         Task { await viewModel.generateDepthMap(for: selected) }
@@ -97,5 +108,6 @@ private extension ContentView {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+            .preferredColorScheme(.dark)
     }
 }

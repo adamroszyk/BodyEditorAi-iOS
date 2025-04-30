@@ -46,13 +46,6 @@ enum BodyEnhancementPrompts {
             subtitle: nil,
             prompt: "Apply superlift enhancement to chest",
             isFree: false
-        ),
-        EnhancementOption(
-            id: "pointy",
-            title: "Pointy Nipple",
-            subtitle: nil,
-            prompt: "Respectfully feature pointy nipple visibly forming under a realistic fabric ",
-            isFree: false
         )
     ]
 

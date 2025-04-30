@@ -7,9 +7,10 @@
 
 import SwiftUI
 
-// MARK: - PhotoContainerView
-struct PhotoContainerView: View {
+// MARK: – Photo container
+ struct PhotoContainerView: View {
     @Binding var inputImage: UIImage?
+    let isGenerating: Bool
     let editedImage: UIImage?
     let depthMapImage: UIImage?
     @Binding var sliderPosition: CGFloat
@@ -20,31 +21,24 @@ struct PhotoContainerView: View {
 
     var body: some View {
         ZStack {
-            backgroundView
-                .ignoresSafeArea()
-
+            backgroundView.ignoresSafeArea()
             PhotoWithRefreshOverlay(
                 originalImage: inputImage,
                 editedImage: editedImage,
                 depthMapImage: depthMapImage,
+                isGenerating: isGenerating,
                 sliderPosition: $sliderPosition,
                 showSlider: $showSlider,
                 onReplaceTap: onReplaceTap,
                 onAddTap: onAddTap,
                 onSaveTap: onSaveTap
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    @ViewBuilder
-    private var backgroundView: some View {
+    @ViewBuilder private var backgroundView: some View {
         if let img = inputImage {
-            Image(uiImage: img)
-                .resizable()
-                .scaledToFill()
-                .blur(radius: 120)
-                .overlay(Color.black.opacity(0.4))
+            Image(uiImage: img).resizable().scaledToFill().blur(radius: 120).overlay(Color.black.opacity(0.4))
         } else {
             Color.black.opacity(0.6)
         }
