@@ -1,0 +1,548 @@
+2025-04-30 10:49:38
+import SwiftUI
+
+/// The bottom action bar for the enhancement panel.
+/// Now displays the currently selected option’s icon in the center.
+struct BottomBar: View {
+    /// The name of the asset to show between Cancel and Apply.
+    let iconAssetName: String?
+    let onCancel: () -> Void
+    let onApply: () -> Void
+
+    var body: some View {
+        HStack {
+            // Cancel button
+            Button(action: onCancel) {
+                Label("Cancel", systemImage: "xmark")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 20)
+            }
+
+            Spacer()
+
+            // Center icon for the selected enhancement
+            if let asset = iconAssetName {
+                Image(asset)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 44, height: 44)
+            }
+
+            Spacer()
+
+            // Apply button
+            Button(action: onApply) {
+                Label("Apply", systemImage: "checkmark")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 18)
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.bottom, 20)
+    }
+}
+import SwiftUI
+
+struct EnhancementPanelView: View {
+    let section: String
+    let options: [EnhancementOption]
+    @Binding var selectedOption: EnhancementOption?
+    let applyAction: () -> Void
+    let cancelAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            PillsScroll(options: options, selectedOption: $selectedOption)
+            Divider().background(Color.white.opacity(0.5))
+            BottomBar(
+                iconAssetName: sectionIconName,
+                onCancel: cancelAction,
+                onApply: applyAction
+            )
+        }
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .padding(.top, 12)
+    }
+    
+    private var sectionIconName: String {
+        // e.g. "Slim Waist" → "SlimWaist"
+        section.replacingOccurrences(of: " ", with: "")
+    }
+}
+
+// MARK: — Pills Scroll
+
+private struct PillsScroll: View {
+    let options: [EnhancementOption]
+    @Binding var selectedOption: EnhancementOption?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(options) { opt in
+                    OptionPill(
+                        option: opt,
+                        isSelected: opt.id == selectedOption?.id
+                    )
+                    .onTapGesture { selectedOption = opt }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+            .padding(.top, 12)
+        }
+    }
+}
+
+// MARK: — Single Pill
+
+private struct OptionPill: View {
+    let option: EnhancementOption
+    let isSelected: Bool
+
+    // map id → SF symbol
+    private var iconName: String {
+        switch option.id {
+        case "round":        return "circle"
+        case "heart_shaped": return "heart.fill"
+        case "superlift":    return "flame.fill"
+        default:             return "sparkles"
+        }
+    }
+
+    private var titleColor: AnyShapeStyle {
+        if isSelected {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [Color.pink, Color.orange],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+        } else {
+            return AnyShapeStyle(Color.white.opacity(0.9))
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: iconName)
+                .font(.subheadline)
+                .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+            Text(option.title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(titleColor)
+        }
+        // ↑ bump horizontal padding from 16 → 20, vertical from 8 → 12
+        .padding(.vertical, 12)
+        .padding(.horizontal, 20)
+        .background(isSelected
+                    ? Color.black.opacity(0.85)
+                    : Color.black.opacity(0.6))
+        .cornerRadius(24)  // slightly larger radius
+        .overlay(
+                    Group {
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)            // slightly larger
+                                .foregroundColor(.white)  // white+
+                                .offset(x: 8, y: -8)
+
+                        }
+                    },
+                    alignment: .topTrailing
+                )    }
+    @ViewBuilder
+    private var checkmarkOverlay: some View {
+        if isSelected {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundColor(.green)
+                .offset(x: 12, y: -12)
+        }
+    }
+}
+//
+//  PhotoContainerView.swift
+//  HairStyle
+//
+//  Created by adam on 25/04/2025.
+//
+
+import SwiftUI
+
+// MARK: - PhotoContainerView
+struct PhotoContainerView: View {
+    @Binding var inputImage: UIImage?
+    let editedImage: UIImage?
+    let depthMapImage: UIImage?
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    let onAddTap: () -> Void
+    let onReplaceTap: () -> Void
+    let onSaveTap: () -> Void
+
+    var body: some View {
+        ZStack {
+            backgroundView
+                .ignoresSafeArea()
+
+            PhotoWithRefreshOverlay(
+                originalImage: inputImage,
+                editedImage: editedImage,
+                depthMapImage: depthMapImage,
+                sliderPosition: $sliderPosition,
+                showSlider: $showSlider,
+                onReplaceTap: onReplaceTap,
+                onAddTap: onAddTap,
+                onSaveTap: onSaveTap
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var backgroundView: some View {
+        if let img = inputImage {
+            Image(uiImage: img)
+                .resizable()
+                .scaledToFill()
+                .blur(radius: 120)
+                .overlay(Color.black.opacity(0.4))
+        } else {
+            Color.black.opacity(0.6)
+        }
+    }
+}
+import SwiftUI
+import StoreKit      // ← add
+
+
+/// The main generation view, with a full-screen loading indicator and faster spinner.
+struct GenView: View {
+    let section: String
+    @StateObject private var viewModel = ImageEditingViewModel()
+    @State private var selectedOption: EnhancementOption?
+
+    @State private var inputImage: UIImage?
+    @State private var showingImagePicker = false
+    @State private var sliderPosition: CGFloat = 0.5
+    @State private var showSlider = false
+    @State private var showSaveSuccessAlert = false
+    @State private var isSpinning = false
+    
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("completedGenerationCount") private var completedGenerationCount = 0
+    @AppStorage("hasRequestedReview")       private var hasRequestedReview     = false
+
+    /// Enhancement options based on selected section
+    private var enhancementOptions: [EnhancementOption] {
+        switch section {
+        case "Chest":    return BodyEnhancementPrompts.breast
+        case "Belly":    return BodyEnhancementPrompts.belly
+        case "Buttock":  return BodyEnhancementPrompts.buttock
+        case "Muscle":   return BodyEnhancementPrompts.muscle
+        case "Hair":     return BodyEnhancementPrompts.hair
+        case "Nose":     return BodyEnhancementPrompts.nose
+        case "Eyes":     return BodyEnhancementPrompts.eyes
+        case "Skin":     return BodyEnhancementPrompts.skin
+        case "Face":     return BodyEnhancementPrompts.face
+        case "Lips":     return BodyEnhancementPrompts.lips
+        case "Waist":    return BodyEnhancementPrompts.waist
+        case "Legs":      return BodyEnhancementPrompts.leg
+        case "jewellery": return BodyEnhancementPrompts.jewellery
+        case "Eyewear":  return BodyEnhancementPrompts.eyewear
+        default:          return []
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            // Content container, blurred & disabled when loading
+            ZStack(alignment: .top) {
+                GeometryReader { geo in
+                    PhotoContainerView(
+                        inputImage: $inputImage,
+                        editedImage: viewModel.editedImage,
+                        depthMapImage: viewModel.depthMapImage,
+                        sliderPosition: $sliderPosition,
+                        showSlider: $showSlider,
+                        onAddTap: pickImage,
+                        onReplaceTap: pickImage,
+                        onSaveTap: saveImage
+                    )
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .ignoresSafeArea()
+
+                    if inputImage != nil {
+                        TopButtons(
+                            onReplace: pickImage,
+                            onSave: saveImage,
+                            topInset: -20
+                        )
+                        .padding(.horizontal, 16)
+                    }
+
+                    VStack {
+                        Spacer()
+                        EnhancementPanelView(
+                            section: section,
+                            options: enhancementOptions,
+                            selectedOption: $selectedOption,
+                            applyAction: { viewModel.editImage() },
+                            cancelAction: { dismiss() }
+                        )
+                        .frame(width: geo.size.width)
+                    }
+                }
+            }
+            .blur(radius: viewModel.isLoading ? 12 : 0)
+            .disabled(viewModel.isLoading)
+            // Remove horizontal padding when loading to ensure full-width blur
+            .padding(.horizontal, viewModel.isLoading ? 0 : 8)
+
+            // Loading overlay with faster spinner
+            if viewModel.isLoading {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(2)
+                    //.rotationEffect(.degrees(isSpinning ? 360 : 0))
+                    .animation(.linear(duration: 0.6).repeatForever(autoreverses: false), value: isSpinning)
+                    .onAppear { isSpinning = true }
+                    
+            }
+        }
+        
+        .navigationBarBackButtonHidden(true)
+        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
+            ImagePicker(image: $inputImage)
+        }
+        .alert("Saved", isPresented: $showSaveSuccessAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Image saved successfully to your Photos.")
+        }
+        .onAppear {
+            Task {
+                do {
+                    try await viewModel.loadModel()
+                } catch {
+                    viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)"
+                }
+            }
+            selectedOption = enhancementOptions.first
+            viewModel.prompt = selectedOption?.prompt ?? ""
+        }
+        .onChange(of: selectedOption) { new in
+                    viewModel.prompt = new?.prompt ?? ""
+        
+            guard new != nil else { return }          // ignore nil resets
+
+            // Increment and persist the completed-generation counter
+            completedGenerationCount += 1
+
+            // Ask for a rating *only* on the 3rd generation, and only once
+            if completedGenerationCount == 3 && !hasRequestedReview,
+               let scene = UIApplication.shared.connectedScenes
+                             .compactMap({ $0 as? UIWindowScene })
+                             .first(where: { $0.activationState == .foregroundActive }) {
+
+                SKStoreReviewController.requestReview(in: scene)
+                hasRequestedReview = true                   // never prompt again
+            }
+        }
+        
+    }
+
+    private func pickImage() {
+        showingImagePicker = true
+    }
+
+    private func loadImage() {
+        guard let img = inputImage else { return }
+        viewModel.editedImage = img
+    }
+
+    private func saveImage() {
+        guard let img = viewModel.editedImage else { return }
+        UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
+        showSaveSuccessAlert = true
+    }
+}
+
+// Top button row extracted
+private struct TopButtons: View {
+    let onReplace: () -> Void
+    let onSave: () -> Void
+    let topInset: CGFloat
+
+    var body: some View {
+        HStack {
+            Button(action: onReplace) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
+            }
+            Spacer()
+            Button(action: onSave) {
+                Image(systemName: "square.and.arrow.down")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
+            }
+        }
+        .padding(.top, topInset + 20)
+    }
+}
+import SwiftUI
+
+struct CatalogView: View {
+    // MARK: — Data
+    private let bodyShapeItems: [(title: String, icon: String)] = [
+        ("Chest Curve",   "Chest"),
+        ("Flat Abs",      "Belly"),
+        ("Buttocks+",     "Buttock"),
+        ("Slim Waist",    "Waist"),
+        ("Legs",          "Legs"),
+        ("Muscles",       "Muscle")
+    ]
+
+    private let facialItems: [(title: String, icon: String)] = [
+        ("Face",          "Face"),
+        ("Eyes",          "Eyes"),
+        ("Nose",          "Nose"),
+        ("Lips",          "Lips"),
+        ("Skin",          "Skin")
+    ]
+
+    private let hairAccessoryItems: [(title: String, icon: String)] = [
+        ("Hair",          "Hair"),
+        ("Jewellery",     "jewellery"),
+        ("Eyewear",       "Eyewear")
+    ]
+
+    // Three flexible columns
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: 16),
+        count: 3
+    )
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+
+                    // MARK: — Header
+                    HStack {
+                        Text("PicUp ✨")
+                            .font(.largeTitle).fontWeight(.bold)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.pink, Color.orange]),
+                                    startPoint: .center,
+                                    endPoint: .trailing
+                                )
+                            )
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+
+                    // MARK: — Body Shape Section
+                    SectionGrid(
+                        title: "Body Shape",
+                        items: bodyShapeItems,
+                        columns: columns
+                    )
+
+                    // MARK: — Facial Section
+                    SectionGrid(
+                        title: "Facial",
+                        items: facialItems,
+                        columns: columns
+                    )
+
+                    // MARK: — Hair & Accessories Section
+                    SectionGrid(
+                        title: "Hair & Accessories",
+                        items: hairAccessoryItems,
+                        columns: columns
+                    )
+                }
+                .padding(.vertical)
+            }
+            .background(Color(red: 0.14, green: 0.13, blue: 0.13).edgesIgnoringSafeArea(.all))
+            .navigationBarHidden(true)
+        }
+    }
+}
+
+private struct SectionGrid: View {
+    let title: String
+    let items: [(title: String, icon: String)]
+    let columns: [GridItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal)
+
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                ForEach(items, id: \.title) { item in
+                    NavigationLink(
+                        destination: GenView(section: item.icon)
+                    ) {
+                        VStack(spacing: 8) {
+                            // Circular icon background
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(Color.black.opacity(0.6))
+                                    .frame(width: 70, height: 70)
+                                    .shadow(color: Color.white.opacity(0.2),
+                                            radius: 6,
+                                            x: 0,
+                                            y: 0)
+
+                                Image(item.icon)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 50, height: 50)
+                            }
+                            
+                            Text(item.title)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+struct CatalogView_Previews: PreviewProvider {
+    static var previews: some View {
+        CatalogView()
+            .preferredColorScheme(.dark)
+    }
+}

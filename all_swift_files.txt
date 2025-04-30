@@ -1,4 +1,4 @@
-2025-04-25 21:59:32
+2025-04-29 11:08:48
 import SwiftUI
 
 /// The bottom action bar for the enhancement panel.
@@ -253,8 +253,9 @@ struct GenView: View {
         case "Face":     return BodyEnhancementPrompts.face
         case "Lips":     return BodyEnhancementPrompts.lips
         case "Waist":    return BodyEnhancementPrompts.waist
-        case "Leg":      return BodyEnhancementPrompts.leg
-        case "Jewelery": return BodyEnhancementPrompts.jewellery
+        case "Legs":      return BodyEnhancementPrompts.leg
+        case "jewellery": return BodyEnhancementPrompts.jewellery
+        case "Eyewear":  return BodyEnhancementPrompts.eyewear
         default:          return []
         }
     }
@@ -394,38 +395,33 @@ import SwiftUI
 
 struct CatalogView: View {
     // MARK: — Data
-    private let reshapeItems: [(title: String, icon: String)] = [
+    private let bodyShapeItems: [(title: String, icon: String)] = [
         ("Chest Curve",   "Chest"),
-        ("Flat Abs",      "Belly2"),
-        ("Buttocks+",     "Buttocks"),
-        ("Muscles",       "Muscles"),
+        ("Flat Abs",      "Belly"),
+        ("Buttocks+",     "Buttock"),
         ("Slim Waist",    "Waist"),
-        ("Legs",          "Leg"),
-        ("Slim Arm",      "Arm"),
-        ("Enlarge Thigh", "Thigh"),
-        ("Hair",          "Hair"),
-        ("Nose",          "Nose"),
-        ("Eyes",          "Eyes"),
-        ("Skin",          "Skin"),
+        ("Legs",          "Legs"),
+        ("Muscles",       "Muscle")
+    ]
+
+    private let facialItems: [(title: String, icon: String)] = [
         ("Face",          "Face"),
+        ("Eyes",          "Eyes"),
+        ("Nose",          "Nose"),
         ("Lips",          "Lips"),
-        ("Jewellery",     "Jewellery")
+        ("Skin",          "Skin")
     ]
 
-    private let aiToolItems: [(title: String, icon: String)] = [
-        ("Upscale",         "Upscale"),
-        ("AI Expand",       "AIExpand"),
-        ("Remove Object",   "RemoveObject"),
-        ("Remove BG",       "RemoveBG"),
-        ("Clothes Changer", "ClothesChanger"),
-        ("AI Edit",         "AIEdit"),
-        ("Skin Fix",        "SkinFix")
+    private let hairAccessoryItems: [(title: String, icon: String)] = [
+        ("Hair",          "Hair"),
+        ("Jewellery",     "jewellery"),
+        ("Eyewear",       "Eyewear")
     ]
 
-    // Four flexible columns
+    // Three flexible columns
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: 16),
-        count: 4
+        count: 3
     )
 
     var body: some View {
@@ -435,7 +431,7 @@ struct CatalogView: View {
 
                     // MARK: — Header
                     HStack {
-                        Text("PicMax")
+                        Text("PicUp ✨")
                             .font(.largeTitle).fontWeight(.bold)
                             .foregroundStyle(
                                 LinearGradient(
@@ -448,17 +444,24 @@ struct CatalogView: View {
                     }
                     .padding(.horizontal)
 
-                    // MARK: — Reshape Section
+                    // MARK: — Body Shape Section
                     SectionGrid(
-                        title: "Reshape",
-                        items: reshapeItems,
+                        title: "Body Shape",
+                        items: bodyShapeItems,
                         columns: columns
                     )
 
-                    // MARK: — AI Tools Section
+                    // MARK: — Facial Section
                     SectionGrid(
-                        title: "AI Tools",
-                        items: aiToolItems,
+                        title: "Facial",
+                        items: facialItems,
+                        columns: columns
+                    )
+
+                    // MARK: — Hair & Accessories Section
+                    SectionGrid(
+                        title: "Hair & Accessories",
+                        items: hairAccessoryItems,
                         columns: columns
                     )
                 }
@@ -485,24 +488,23 @@ private struct SectionGrid: View {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                 ForEach(items, id: \.title) { item in
                     NavigationLink(
-                        destination: GenView(section: item.title) 
+                        destination: GenView(section: item.icon)
                     ) {
                         VStack(spacing: 8) {
                             // Circular icon background
                             ZStack {
                                 RoundedRectangle(cornerRadius: 18)
                                     .fill(Color.black.opacity(0.6))
-                                    .frame(width: 55, height: 55)
-                                // outer lighter glow
+                                    .frame(width: 70, height: 70)
                                     .shadow(color: Color.white.opacity(0.2),
                                             radius: 6,
                                             x: 0,
                                             y: 0)
-                                
+
                                 Image(item.icon)
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 50, height: 50)
                             }
                             
                             Text(item.title)
@@ -1345,14 +1347,35 @@ enum BodyEnhancementPrompts {
             id: "flat_abs",
             title: "Flat Abs",
             subtitle: nil,
-            prompt: "Smooth and flatten the belly for a toned look",
+            prompt: "Respectfully slim and flatten the belly and waist",
             isFree: true
         ),
         EnhancementOption(
             id: "hourglass",
             title: "Hourglass",
             subtitle: nil,
-            prompt: "Accentuate the waist-to-hip curve",
+            prompt: "Respectfully enhance the waist-to-hip curve",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "defined_abs",
+            title: "Defined Abs",
+            subtitle: nil,
+            prompt: "Respectfully Enhance the abdominal abs",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "sculpted_core",
+            title: "Sculpted Core",
+            subtitle: nil,
+            prompt: "Respectfully Sculpt and refine the core muscles for a balanced",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "chiseled_midsection",
+            title: "Chiseled Midsection",
+            subtitle: nil,
+            prompt: "Respectfully enhance the lines of the midsection abs",
             isFree: false
         )
     ]
@@ -1371,25 +1394,95 @@ enum BodyEnhancementPrompts {
             subtitle: nil,
             prompt: "Enhance roundness for a curvier silhouette",
             isFree: false
+        ),
+        EnhancementOption(
+            id: "heart_shaped",
+            title: "Heart-shaped",
+            subtitle: "Limited-time free",
+            prompt: "Respectfully reshape glutes into a heart-shaped form",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "superlift",
+            title: "Superlift",
+            subtitle: nil,
+            prompt: "Apply superlift enhancement to buttocks for maximum elevation",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "sculpted_glutes",
+            title: "Sculpted Glutes",
+            subtitle: nil,
+            prompt: "Respectfully define and sculpt the glute muscles for a toned look",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "perky",
+            title: "Perky",
+            subtitle: nil,
+            prompt: "Respectfully perk up the buttocks for a youthful, lifted appearance",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "voluminous",
+            title: "Voluminous",
+            subtitle: nil,
+            prompt: "Enhance volume and roundness for fuller, more pronounced glutes",
+            isFree: false
         )
     ]
-
     static let muscle: [EnhancementOption] = [
         EnhancementOption(
             id: "tone",
-            title: "Tone",
+            title: "Upper Body",
             subtitle: nil,
-            prompt: "Define and tone upper-body muscles",
+            prompt: "Respectfully increase the muscle shape on neck and upper body",
             isFree: true
         ),
         EnhancementOption(
             id: "sculpt",
-            title: "Sculpt",
+            title: "Arms & Forearms",
             subtitle: nil,
-            prompt: "Sculpt muscles for a chiseled look",
+            prompt: "Respectfully enhance the muscle shape on the arms and forearms",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "bicep_peak",
+            title: "Bicep Peak",
+            subtitle: nil,
+            prompt: "Respectfully accentuate the bicep peak for a more pronounced flex",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "tricep_tone",
+            title: "Tricep Tone",
+            subtitle: nil,
+            prompt: "Respectfully slim and tone the triceps for sleek definition",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "vascular_forearms",
+            title: "Vascular Forearms",
+            subtitle: "Limited-time free",
+            prompt: "Respectfully highlight forearm veins and muscle separation",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "forearm_definition",
+            title: "Forearm Definition",
+            subtitle: nil,
+            prompt: "Respectfully define the forearm muscles for enhanced detail",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "arm_strength",
+            title: "Strength Boost",
+            subtitle: nil,
+            prompt: "Respectfully add subtle bulk to arms",
             isFree: false
         )
     ]
+
 
     static let waist: [EnhancementOption] = [
         EnhancementOption(
@@ -1422,8 +1515,79 @@ enum BodyEnhancementPrompts {
             subtitle: nil,
             prompt: "Smooth hair and reduce frizz",
             isFree: false
+        ),
+        EnhancementOption(
+            id: "silver_blonde",
+            title: "Silver Blonde",
+            subtitle: nil,
+            prompt: "Transform hair to a chic silver blonde shade",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "bob_cut",
+            title: "Bob Cut",
+            subtitle: nil,
+            prompt: "Give hair a modern bob cut",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "afro",
+            title: "Afro",
+            subtitle: "Limited-time free",
+            prompt: "Define natural afro texture and volume",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "pixie_cut",
+            title: "Pixie Cut",
+            subtitle: nil,
+            prompt: "Create a stylish pixie cut",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "ombre",
+            title: "Ombre",
+            subtitle: nil,
+            prompt: "Add subtle ombre color blending",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "highlights",
+            title: "Highlights",
+            subtitle: nil,
+            prompt: "Incorporate bright highlights throughout hair",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "balayage",
+            title: "Balayage",
+            subtitle: nil,
+            prompt: "Apply a natural balayage painting technique",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "loose_curls",
+            title: "Loose Curls",
+            subtitle: nil,
+            prompt: "Add loose, bouncy curls for movement",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "beach_waves",
+            title: "Beach Waves",
+            subtitle: "Limited-time free",
+            prompt: "Create soft, effortless beach waves",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "sleek_straight",
+            title: "Sleek Straight",
+            subtitle: nil,
+            prompt: "Smooth hair into a sleek, straight style",
+            isFree: false
         )
     ]
+
 
     static let nose: [EnhancementOption] = [
         EnhancementOption(
@@ -1526,8 +1690,78 @@ enum BodyEnhancementPrompts {
             isFree: false
         )
     ]
-
+    
     static let jewellery: [EnhancementOption] = [
+        EnhancementOption(
+                id: "gold_hoop_minimal",
+                title: "Minimal Gold Hoops",
+                subtitle: nil,
+                prompt: "Add sleek, minimalistic gold hoop earrings",
+                isFree: true
+            ),
+            EnhancementOption(
+                id: "delicate_gold_chain",
+                title: "Delicate Gold Chain",
+                subtitle: nil,
+                prompt: "Add a thin, delicate gold chain necklace",
+                isFree: true
+            ),
+            EnhancementOption(
+                id: "stackable_bands",
+                title: "Stackable Bands",
+                subtitle: nil,
+                prompt: "Add a set of minimal stackable gold rings",
+                isFree: false
+            ),
+            EnhancementOption(
+                id: "geometric_studs",
+                title: "Geometric Studs",
+                subtitle: nil,
+                prompt: "Add small geometric stud earrings in gold",
+                isFree: true
+            ),
+            EnhancementOption(
+                id: "thin_gold_bangle",
+                title: "Thin Gold Bangle",
+                subtitle: nil,
+                prompt: "Add a slender, minimalistic gold bangle bracelet",
+                isFree: false
+            ),
+            EnhancementOption(
+                id: "gold_bar_necklace",
+                title: "Gold Bar Necklace",
+                subtitle: "Limited-time free",
+                prompt: "Add a minimalist gold bar pendant necklace",
+                isFree: true
+            ),
+            EnhancementOption(
+                id: "link_chain_bracelet",
+                title: "Link Chain Bracelet",
+                subtitle: nil,
+                prompt: "Add a bold gold link chain bracelet",
+                isFree: false
+            ),
+            EnhancementOption(
+                id: "pearls_and_gold",
+                title: "Pearls & Gold",
+                subtitle: nil,
+                prompt: "Add a blend of pearls with gold accents",
+                isFree: true
+            ),
+            EnhancementOption(
+                id: "gold_cuff_minimal",
+                title: "Minimal Gold Cuff",
+                subtitle: nil,
+                prompt: "Add a clean, minimalistic gold cuff bracelet",
+                isFree: false
+            ),
+            EnhancementOption(
+                id: "layered_gold_chains",
+                title: "Layered Gold Chains",
+                subtitle: nil,
+                prompt: "Add multiple thin gold chain necklaces for layering",
+                isFree: false
+            ),
         EnhancementOption(
             id: "earrings",
             title: "Earrings",
@@ -1541,6 +1775,150 @@ enum BodyEnhancementPrompts {
             subtitle: nil,
             prompt: "Add a beautiful necklace",
             isFree: false
+        ),
+        EnhancementOption(
+            id: "bracelet",
+            title: "Bracelet",
+            subtitle: nil,
+            prompt: "Add a delicate bracelet around the wrist",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "ring",
+            title: "Ring",
+            subtitle: nil,
+            prompt: "Add a sparkling ring to the fingers",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "anklet",
+            title: "Anklet",
+            subtitle: "Limited-time free",
+            prompt: "Add a subtle anklet for a refined touch",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "chandelier_earrings",
+            title: "Chandelier Earrings",
+            subtitle: nil,
+            prompt: "Add elegant chandelier-style earrings",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "hoop_earrings",
+            title: "Hoop Earrings",
+            subtitle: nil,
+            prompt: "Add classic hoop earrings",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "cuff_bracelet",
+            title: "Cuff Bracelet",
+            subtitle: nil,
+            prompt: "Add a bold cuff bracelet to the wrist",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "choker",
+            title: "Choker",
+            subtitle: nil,
+            prompt: "Add a sleek choker around the neck",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "pendant",
+            title: "Pendant",
+            subtitle: nil,
+            prompt: "Add a charming pendant on a fine chain",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "brooch",
+            title: "Brooch",
+            subtitle: nil,
+            prompt: "Add a decorative brooch for a vintage flair",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "watch",
+            title: "Watch",
+            subtitle: nil,
+            prompt: "Add a stylish wristwatch",
+            isFree: false
+        )
+    ]
+
+    // New Eyewear options
+    static let eyewear: [EnhancementOption] = [
+        EnhancementOption(
+            id: "eyewear",
+            title: "Eyewear",
+            subtitle: nil,
+            prompt: "Add stylish eyewear frames",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "sunglasses",
+            title: "Sunglasses",
+            subtitle: nil,
+            prompt: "Add trendy sunglasses with reflective lenses",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "reading_glasses",
+            title: "Reading Glasses",
+            subtitle: "Limited-time free",
+            prompt: "Add elegant reading glasses with thin frames",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "aviators",
+            title: "Aviator Frames",
+            subtitle: nil,
+            prompt: "Add classic aviator sunglasses with metal frames",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "wayfarer",
+            title: "Wayfarer",
+            subtitle: nil,
+            prompt: "Add stylish wayfarer-style glasses",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "round_frames",
+            title: "Round Frames",
+            subtitle: nil,
+            prompt: "Add vintage round frame glasses",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "cat_eye",
+            title: "Cat-eye",
+            subtitle: nil,
+            prompt: "Add chic cat-eye glasses for a retro look",
+            isFree: true
+        ),
+        EnhancementOption(
+            id: "translucent_frames",
+            title: "Translucent Frames",
+            subtitle: nil,
+            prompt: "Add translucent frame glasses with modern vibe",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "sports_goggles",
+            title: "Sports Goggles",
+            subtitle: nil,
+            prompt: "Add sporty wrap-around goggles",
+            isFree: false
+        ),
+        EnhancementOption(
+            id: "steampunk_goggles",
+            title: "Steampunk Goggles",
+            subtitle: "Limited-time free",
+            prompt: "Add decorative steampunk-style goggles",
+            isFree: true
         )
     ]
 }
@@ -1701,7 +2079,7 @@ import SwiftUI
 
 @main
 struct HairStyleApp: App {
-    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
+    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = true
     
     /// Create a single instance of SubscriptionManager
     @StateObject var subscriptionManager = SubscriptionManager()

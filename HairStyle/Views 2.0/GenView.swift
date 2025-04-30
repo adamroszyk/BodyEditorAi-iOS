@@ -1,4 +1,6 @@
 import SwiftUI
+import StoreKit      // ← add
+
 
 /// The main generation view, with a full-screen loading indicator and faster spinner.
 struct GenView: View {
@@ -14,6 +16,8 @@ struct GenView: View {
     @State private var isSpinning = false
     
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("completedGenerationCount") private var completedGenerationCount = 0
+    @AppStorage("hasRequestedReview")       private var hasRequestedReview     = false
 
     /// Enhancement options based on selected section
     private var enhancementOptions: [EnhancementOption] {
@@ -118,7 +122,22 @@ struct GenView: View {
         }
         .onChange(of: selectedOption) { new in
                     viewModel.prompt = new?.prompt ?? ""
-                }
+        
+            guard new != nil else { return }          // ignore nil resets
+
+            // Increment and persist the completed-generation counter
+            completedGenerationCount += 1
+
+            // Ask for a rating *only* on the 3rd generation, and only once
+            if completedGenerationCount == 3 && !hasRequestedReview,
+               let scene = UIApplication.shared.connectedScenes
+                             .compactMap({ $0 as? UIWindowScene })
+                             .first(where: { $0.activationState == .foregroundActive }) {
+
+                SKStoreReviewController.requestReview(in: scene)
+                hasRequestedReview = true                   // never prompt again
+            }
+        }
         
     }
 
