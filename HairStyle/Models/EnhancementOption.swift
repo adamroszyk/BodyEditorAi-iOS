@@ -26,310 +26,100 @@ struct EnhancementOption: Identifiable, Equatable {
 
 enum BodyEnhancementPrompts {
     static let breast: [EnhancementOption] = [
-        EnhancementOption(
-            id: "round",
-            title: "Round",
-            subtitle: nil,
-            prompt: "Respectfully enhance chest curvature",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "heart_shaped",
-            title: "Heart-shaped",
-            subtitle: "Limited-time free",
-            prompt: "Enhance chest into a heart-shaped bust",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "superlift",
-            title: "Superlift",
-            subtitle: nil,
-            prompt: "Apply superlift enhancement to chest",
-            isFree: false
-        )
-    ]
+           EnhancementOption(id: "round",               title: "Round",                subtitle: nil,                prompt: "Respectfully enhance chest curvature",                                             isFree: true),
+           EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Enhance chest into a heart‑shaped bust",                                         isFree: true),
+           EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to chest",                                           isFree: false),
+           EnhancementOption(id: "natural_lift",        title: "Natural Lift",        subtitle: nil,                prompt: "Apply natural lift enhancement to chest",                             isFree: false),
+           EnhancementOption(id: "subtle_volume",       title: "Subtle Volume",       subtitle: nil,                prompt: "Respectfully but minimally enhance chest curvature",                           isFree: true),
+           EnhancementOption(id: "snatched_cleavage",   title: "Snatched Cleavage",   subtitle: "Limited‑time free", prompt: "Respectfully but subtly enhance chest curvature",                      isFree: true)
+       ]
 
-    static let belly: [EnhancementOption] = [
-        EnhancementOption(
-            id: "flat_abs",
-            title: "Flat Abs",
-            subtitle: nil,
-            prompt: "Respectfully slim and flatten the belly and waist",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "hourglass",
-            title: "Hourglass",
-            subtitle: nil,
-            prompt: "Respectfully enhance the waist-to-hip curve",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "defined_abs",
-            title: "Defined Abs",
-            subtitle: nil,
-            prompt: "Respectfully Enhance the abdominal abs",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "sculpted_core",
-            title: "Sculpted Core",
-            subtitle: nil,
-            prompt: "Respectfully Sculpt and refine the core muscles for a balanced",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "chiseled_midsection",
-            title: "Chiseled Midsection",
-            subtitle: nil,
-            prompt: "Respectfully enhance the lines of the midsection abs",
-            isFree: false
-        )
-    ]
+       // MARK: – Belly / Core
+       static let belly: [EnhancementOption] = [
+           EnhancementOption(id: "flat_abs",            title: "Flat Abs",            subtitle: nil,                prompt: "Respectfully slim and flatten the belly and waist",                               isFree: true),
+           EnhancementOption(id: "hourglass",           title: "Hourglass",           subtitle: nil,                prompt: "Respectfully enhance the waist‑to‑hip curve",                                     isFree: false),
+           EnhancementOption(id: "defined_abs",         title: "Defined Abs",         subtitle: nil,                prompt: "Respectfully enhance the abdominal abs",                                        isFree: false),
+           EnhancementOption(id: "sculpted_core",       title: "Sculpted Core",       subtitle: nil,                prompt: "Respectfully sculpt and refine the core muscles for balance",                   isFree: true),
+           EnhancementOption(id: "chiseled_midsection", title: "Chiseled Midsection", subtitle: nil,                prompt: "Respectfully enhance the lines of the midsection abs",                         isFree: false),
+           EnhancementOption(id: "snatched_waist",      title: "Snatched Waist",      subtitle: "Limited‑time free", prompt: "Respectfully cinch the waist for a snatched silhouette",                         isFree: true),
+           EnhancementOption(id: "vacuum_slim",         title: "Vacuum Slim",         subtitle: nil,                prompt: "Respectfully apply stomach‑vacuum slimming for a flat profile",                 isFree: false),
+           EnhancementOption(id: "core_carve",          title: "Core Carve",          subtitle: nil,                prompt: "Respectfully carve deep core lines for athletic definition",                   isFree: false)
+       ]
 
-    static let buttock: [EnhancementOption] = [
-        EnhancementOption(
-            id: "lift",
-            title: "Lift",
-            subtitle: nil,
-            prompt: "Lift and sculpt the buttocks for a firmer look",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "round",
-            title: "Round",
-            subtitle: nil,
-            prompt: "Enhance roundness for a curvier silhouette",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "heart_shaped",
-            title: "Heart-shaped",
-            subtitle: "Limited-time free",
-            prompt: "Respectfully reshape glutes into a heart-shaped form",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "superlift",
-            title: "Superlift",
-            subtitle: nil,
-            prompt: "Apply superlift enhancement to buttocks for maximum elevation",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "sculpted_glutes",
-            title: "Sculpted Glutes",
-            subtitle: nil,
-            prompt: "Respectfully define and sculpt the glute muscles for a toned look",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "perky",
-            title: "Perky",
-            subtitle: nil,
-            prompt: "Respectfully perk up the buttocks for a youthful, lifted appearance",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "voluminous",
-            title: "Voluminous",
-            subtitle: nil,
-            prompt: "Enhance volume and roundness for fuller, more pronounced glutes",
-            isFree: false
-        )
-    ]
-    static let muscle: [EnhancementOption] = [
-        EnhancementOption(
-            id: "tone",
-            title: "Upper Body",
-            subtitle: nil,
-            prompt: "Respectfully increase the muscle shape on neck and upper body",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "sculpt",
-            title: "Arms & Forearms",
-            subtitle: nil,
-            prompt: "Respectfully enhance the muscle shape on the arms and forearms",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "bicep_peak",
-            title: "Bicep Peak",
-            subtitle: nil,
-            prompt: "Respectfully accentuate the bicep peak for a more pronounced flex",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "tricep_tone",
-            title: "Tricep Tone",
-            subtitle: nil,
-            prompt: "Respectfully slim and tone the triceps for sleek definition",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "vascular_forearms",
-            title: "Vascular Forearms",
-            subtitle: "Limited-time free",
-            prompt: "Respectfully highlight forearm veins and muscle separation",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "forearm_definition",
-            title: "Forearm Definition",
-            subtitle: nil,
-            prompt: "Respectfully define the forearm muscles for enhanced detail",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "arm_strength",
-            title: "Strength Boost",
-            subtitle: nil,
-            prompt: "Respectfully add subtle bulk to arms",
-            isFree: false
-        )
-    ]
+       // MARK: – Buttock / Glutes
+       static let buttock: [EnhancementOption] = [
+           EnhancementOption(id: "lift",                title: "Lift",                subtitle: nil,                prompt: "Lift and sculpt the buttocks for a firmer look",                              isFree: true),
+           EnhancementOption(id: "round",               title: "Round",               subtitle: nil,                prompt: "Enhance roundness for a curvier silhouette",                                   isFree: false),
+           EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Respectfully reshape glutes into a heart‑shaped form",                          isFree: true),
+           EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to buttocks for maximum elevation",               isFree: false),
+           EnhancementOption(id: "sculpted_glutes",     title: "Sculpted Glutes",     subtitle: nil,                prompt: "Respectfully define and sculpt the glute muscles for a toned look",           isFree: false),
+           EnhancementOption(id: "perky",               title: "Perky",               subtitle: nil,                prompt: "Respectfully perk up the buttocks for a youthful, lifted appearance",        isFree: true),
+           EnhancementOption(id: "voluminous",          title: "Voluminous",          subtitle: nil,                prompt: "Enhance volume and roundness for fuller, more pronounced glutes",            isFree: false),
+           EnhancementOption(id: "peach_lift",          title: "Peach Lift",          subtitle: nil,                prompt: "Respectfully lift glutes for a peach‑emoji vibe 🍑",                          isFree: true),
+           EnhancementOption(id: "bubble_booty",        title: "Bubble Booty",        subtitle: nil,                prompt: "Respectfully add bubble‑shaped roundness for a playful look",                isFree: false),
+           EnhancementOption(id: "brazilian_curve",     title: "Brazilian Curve",     subtitle: "Limited‑time free", prompt: "Respectfully enhance lower‑upper glute transition for Brazilian shape",       isFree: true),
+           EnhancementOption(id: "shape_360",           title: "360 Shape",           subtitle: nil,                prompt: "Respectfully smooth and contour hips & glutes for a 360° hourglass",         isFree: false)
+       ]
 
+       // MARK: – Muscle / Arms
+       static let muscle: [EnhancementOption] = [
+           EnhancementOption(id: "tone",                title: "Upper Body",          subtitle: nil,                prompt: "Respectfully increase the muscle shape on neck and upper body",               isFree: true),
+           EnhancementOption(id: "sculpt",              title: "Arms & Forearms",     subtitle: nil,                prompt: "Respectfully enhance the muscle shape on the arms and forearms",            isFree: false),
+           EnhancementOption(id: "bicep_peak",          title: "Bicep Peak",          subtitle: nil,                prompt: "Respectfully accentuate the bicep peak for a more pronounced flex",        isFree: false),
+           EnhancementOption(id: "tricep_tone",         title: "Tricep Tone",         subtitle: nil,                prompt: "Respectfully slim and tone the triceps for sleek definition",              isFree: true),
+           EnhancementOption(id: "vascular_forearms",   title: "Vascular Forearms",   subtitle: "Limited‑time free", prompt: "Respectfully highlight forearm veins and muscle separation",                  isFree: true),
+           EnhancementOption(id: "forearm_definition",  title: "Forearm Definition",  subtitle: nil,                prompt: "Respectfully define the forearm muscles for enhanced detail",              isFree: false),
+           EnhancementOption(id: "arm_strength",        title: "Strength Boost",       subtitle: nil,                prompt: "Respectfully add subtle bulk to arms",                                   isFree: false),
+           EnhancementOption(id: "swimmer_build",       title: "Swimmer Build",       subtitle: nil,                prompt: "Respectfully broaden shoulders and taper waist for swimmer aesthetics",     isFree: false),
+           EnhancementOption(id: "athlete_tone",        title: "Athlete Tone",        subtitle: nil,                prompt: "Respectfully tone arms for an athletic, sporty vibe",                      isFree: true),
+           EnhancementOption(id: "power_flex",          title: "Power Flex",          subtitle: "Limited‑time free", prompt: "Respectfully sharpen muscle definition for a power pose",                     isFree: true)
+       ]
 
-    static let waist: [EnhancementOption] = [
-        EnhancementOption(
-            id: "slim",
-            title: "Slim",
-            subtitle: nil,
-            prompt: "Slim and cinch the waist",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "curve",
-            title: "Curve",
-            subtitle: nil,
-            prompt: "Enhance waist curves for definition",
-            isFree: false
-        )
-    ]
+       // MARK: – Waist
+       static let waist: [EnhancementOption] = [
+           EnhancementOption(id: "slim",                title: "Slim",                subtitle: nil,                prompt: "Slim and cinch the waist",                                               isFree: true),
+           EnhancementOption(id: "curve",               title: "Curve",               subtitle: nil,                prompt: "Enhance waist curves for definition",                                   isFree: false),
+           EnhancementOption(id: "v_shape",             title: "V‑Shape",             subtitle: nil,                prompt: "Respectfully sculpt a tapered V‑shape waist",                              isFree: false),
+           EnhancementOption(id: "corset_cinch",        title: "Corset Cinch",        subtitle: "Limited‑time free", prompt: "Respectfully simulate corset‑style waist cinching for TikTok snatch",          isFree: true)
+       ]
 
-    static let hair: [EnhancementOption] = [
-        EnhancementOption(
-            id: "volume",
-            title: "Volume",
-            subtitle: nil,
-            prompt: "Add natural volume and body to hair",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "smooth",
-            title: "Smooth",
-            subtitle: nil,
-            prompt: "Smooth hair and reduce frizz",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "silver_blonde",
-            title: "Silver Blonde",
-            subtitle: nil,
-            prompt: "Transform hair to a chic silver blonde shade",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "bob_cut",
-            title: "Bob Cut",
-            subtitle: nil,
-            prompt: "Give hair a modern bob cut",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "afro",
-            title: "Afro",
-            subtitle: "Limited-time free",
-            prompt: "Define natural afro texture and volume",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "pixie_cut",
-            title: "Pixie Cut",
-            subtitle: nil,
-            prompt: "Create a stylish pixie cut",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "ombre",
-            title: "Ombre",
-            subtitle: nil,
-            prompt: "Add subtle ombre color blending",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "highlights",
-            title: "Highlights",
-            subtitle: nil,
-            prompt: "Incorporate bright highlights throughout hair",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "balayage",
-            title: "Balayage",
-            subtitle: nil,
-            prompt: "Apply a natural balayage painting technique",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "loose_curls",
-            title: "Loose Curls",
-            subtitle: nil,
-            prompt: "Add loose, bouncy curls for movement",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "beach_waves",
-            title: "Beach Waves",
-            subtitle: "Limited-time free",
-            prompt: "Create soft, effortless beach waves",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "sleek_straight",
-            title: "Sleek Straight",
-            subtitle: nil,
-            prompt: "Smooth hair into a sleek, straight style",
-            isFree: false
-        )
-    ]
+       // MARK: – Hair
+       static let hair: [EnhancementOption] = [
+           EnhancementOption(id: "volume",              title: "Volume",              subtitle: nil,                prompt: "Add natural volume and body to hair",                                    isFree: true),
+           EnhancementOption(id: "smooth",              title: "Smooth",              subtitle: nil,                prompt: "Smooth hair and reduce frizz",                                          isFree: false),
+           EnhancementOption(id: "silver_blonde",       title: "Silver Blonde",       subtitle: nil,                prompt: "Transform hair to a chic silver blonde shade",                            isFree: true),
+           EnhancementOption(id: "bob_cut",             title: "Bob Cut",             subtitle: nil,                prompt: "Give hair a modern bob cut",                                            isFree: false),
+           EnhancementOption(id: "afro",                title: "Afro",                subtitle: "Limited‑time free", prompt: "Define natural afro texture and volume",                                    isFree: true),
+           EnhancementOption(id: "pixie_cut",           title: "Pixie Cut",           subtitle: nil,                prompt: "Create a stylish pixie cut",                                           isFree: false),
+           EnhancementOption(id: "ombre",               title: "Ombre",               subtitle: nil,                prompt: "Add subtle ombre color blending",                                       isFree: true),
+           EnhancementOption(id: "highlights",          title: "Highlights",          subtitle: nil,                prompt: "Incorporate bright highlights throughout hair",                           isFree: false),
+           EnhancementOption(id: "balayage",            title: "Balayage",            subtitle: nil,                prompt: "Apply a natural balayage painting technique",                             isFree: false),
+           EnhancementOption(id: "loose_curls",         title: "Loose Curls",         subtitle: nil,                prompt: "Add loose, bouncy curls for movement",                                   isFree: true),
+           EnhancementOption(id: "beach_waves",         title: "Beach Waves",         subtitle: "Limited‑time free", prompt: "Create soft, effortless beach waves",                                      isFree: true),
+           EnhancementOption(id: "sleek_straight",      title: "Sleek Straight",      subtitle: nil,                prompt: "Smooth hair into a sleek, straight style",                                 isFree: false),
+           EnhancementOption(id: "butterfly_layers",    title: "Butterfly Layers",    subtitle: nil,                prompt: "Add TikTok trending butterfly layers for airy movement",                   isFree: true),
+           EnhancementOption(id: "curtain_bangs",       title: "Curtain Bangs",       subtitle: nil,                prompt: "Add soft curtain bangs framing the face",                                isFree: false),
+           EnhancementOption(id: "mermaid_waves",       title: "Mermaid Waves",       subtitle: "Limited‑time free", prompt: "Create long, flowing mermaid waves with shine",                              isFree: true),
+           EnhancementOption(id: "copper_glow",         title: "Copper Glow",         subtitle: nil,                prompt: "Transform hair to a warm LA‑sun copper glow",                              isFree: false),
+           EnhancementOption(id: "pastel_pink",         title: "Pastel Pink",         subtitle: nil,                prompt: "Tint hair a playful pastel pink",                                       isFree: false)
+       ]
 
+       // MARK: – Nose
+       static let nose: [EnhancementOption] = [
+           EnhancementOption(id: "refine",              title: "Refine",              subtitle: nil,                prompt: "Refine the nose shape subtly",                                         isFree: true),
+           EnhancementOption(id: "slim",                title: "Slim",                subtitle: nil,                prompt: "Slim down the nose bridge",                                           isFree: false),
+           EnhancementOption(id: "button_tip",          title: "Button Tip",          subtitle: nil,                prompt: "Respectfully soften and round the nose tip for a button effect",          isFree: true),
+           EnhancementOption(id: "soft_contour",        title: "Soft Contour",        subtitle: nil,                prompt: "Respectfully add gentle shadow for a softly contoured nose",             isFree: false)
+       ]
 
-    static let nose: [EnhancementOption] = [
-        EnhancementOption(
-            id: "refine",
-            title: "Refine",
-            subtitle: nil,
-            prompt: "Refine the nose shape subtly",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "slim",
-            title: "Slim",
-            subtitle: nil,
-            prompt: "Slim down the nose bridge",
-            isFree: false
-        )
-    ]
-
-    static let eyes: [EnhancementOption] = [
-        EnhancementOption(
-            id: "brighten",
-            title: "Brighten",
-            subtitle: nil,
-            prompt: "Brighten eyes and reduce shadows",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "enlarge",
-            title: "Enlarge",
-            subtitle: nil,
-            prompt: "Subtly enlarge the eyes",
-            isFree: false
-        )
-    ]
-
+       // MARK: – Eyes
+       static let eyes: [EnhancementOption] = [
+           EnhancementOption(id: "brighten",            title: "Brighten",            subtitle: nil,                prompt: "Brighten eyes and reduce shadows",                                      isFree: true),
+           EnhancementOption(id: "enlarge",             title: "Enlarge",             subtitle: nil,                prompt: "Subtly enlarge the eyes",                                            isFree: false),
+           EnhancementOption(id: "fox_lift",            title: "Fox Lift",            subtitle: nil,                prompt: "Respectfully lift outer corners for a fox‑eye trend",                   isFree: true),
+           EnhancementOption(id: "doll_eyes",           title: "Doll Eyes",           subtitle: "Limited‑time free", prompt: "Respectfully widen and round eyes for a doll‑like effect",                 isFree: true),
+           EnhancementOption(id: "winged_liner",        title: "Winged Liner",        subtitle: nil,                prompt: "Apply a clean winged‑liner illusion for sharp definition",              isFree: false)
+       ]
     static let skin: [EnhancementOption] = [
         EnhancementOption(
             id: "smooth",

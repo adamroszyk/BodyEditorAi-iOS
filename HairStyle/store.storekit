@@ -9,7 +9,7 @@
       }
     ]
   },
-  "identifier" : "9B68E2F4",
+  "identifier" : "DD8052E4",
   "nonRenewingSubscriptions" : [
 
   ],
@@ -17,10 +17,10 @@
 
   ],
   "settings" : {
-    "_applicationInternalID" : "6743659780",
+    "_applicationInternalID" : "6745119476",
     "_developerTeamID" : "3LQM9KSXZ2",
     "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : 764589866.14093602,
+    "_lastSynchronizedDate" : 767741472.85789001,
     "_locale" : "en_US",
     "_storefront" : "USA",
     "_storeKitErrors" : [
@@ -73,11 +73,11 @@
   },
   "subscriptionGroups" : [
     {
-      "id" : "21655902",
+      "id" : "21678949",
       "localizations" : [
 
       ],
-      "name" : "wannabe",
+      "name" : "subs",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -89,19 +89,19 @@
           "displayPrice" : "4.99",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "6743744938",
+          "internalID" : "6745303565",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Week of Unlimited Photo Edits in Beauty Cam",
-              "displayName" : "Week of Unlimited Photo Edits",
-              "locale" : "en_US"
+              "description" : "Weekly subscrIption",
+              "displayName" : "Weekly subscrIption",
+              "locale" : "en_GB"
             }
           ],
-          "productID" : "wbweek",
+          "productID" : "weeksub",
           "recurringSubscriptionPeriod" : "P1W",
-          "referenceName" : "Week of Unlimited Photo Editing",
-          "subscriptionGroupID" : "21655902",
+          "referenceName" : "Weekly Subscription",
+          "subscriptionGroupID" : "21678949",
           "type" : "RecurringSubscription",
           "winbackOffers" : [
 
@@ -114,22 +114,22 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "24.99",
+          "displayPrice" : "44.99",
           "familyShareable" : false,
           "groupNumber" : 2,
-          "internalID" : "6743745856",
+          "internalID" : "6745303507",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Week of Unlimited Photo Editing- Beauty Cam",
-              "displayName" : "Week of Unlimited Photo Edits",
-              "locale" : "en_US"
+              "description" : "Yearly Subscription",
+              "displayName" : "Yearly Subscription",
+              "locale" : "en_GB"
             }
           ],
-          "productID" : "wbyear",
+          "productID" : "yearsub",
           "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Year of Unlimited Photo Editing",
-          "subscriptionGroupID" : "21655902",
+          "referenceName" : "Yearly Subscription",
+          "subscriptionGroupID" : "21678949",
           "type" : "RecurringSubscription",
           "winbackOffers" : [
 
