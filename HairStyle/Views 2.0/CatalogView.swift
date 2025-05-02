@@ -38,7 +38,7 @@ struct CatalogView: View {
 
                     // MARK: — Header
                     HStack {
-                        Text("PicUp ✨")
+                        Text("BodyEditor Ai")
                             .font(.largeTitle).fontWeight(.bold)
                             .foregroundStyle(
                                 LinearGradient(

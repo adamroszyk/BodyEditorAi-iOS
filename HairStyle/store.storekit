@@ -20,7 +20,7 @@
     "_applicationInternalID" : "6745119476",
     "_developerTeamID" : "3LQM9KSXZ2",
     "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : 767741472.85789001,
+    "_lastSynchronizedDate" : 767870880.60060596,
     "_locale" : "en_US",
     "_storefront" : "USA",
     "_storeKitErrors" : [
@@ -101,34 +101,6 @@
           "productID" : "weeksub",
           "recurringSubscriptionPeriod" : "P1W",
           "referenceName" : "Weekly Subscription",
-          "subscriptionGroupID" : "21678949",
-          "type" : "RecurringSubscription",
-          "winbackOffers" : [
-
-          ]
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "44.99",
-          "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "6745303507",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Yearly Subscription",
-              "displayName" : "Yearly Subscription",
-              "locale" : "en_GB"
-            }
-          ],
-          "productID" : "yearsub",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Yearly Subscription",
           "subscriptionGroupID" : "21678949",
           "type" : "RecurringSubscription",
           "winbackOffers" : [

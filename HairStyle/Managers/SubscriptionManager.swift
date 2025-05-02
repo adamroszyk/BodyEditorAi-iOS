@@ -22,8 +22,7 @@ class SubscriptionManager: ObservableObject {
     
     /// Define your product IDs exactly as they appear in your StoreKit config
     private let productIDs = [
-        "wbweek",  // replace with your actual weekly ID
-        "wbyear"   // replace with your actual annual ID
+        "weeksub"
     ]
     
     init() {

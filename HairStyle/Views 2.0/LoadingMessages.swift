@@ -20,7 +20,7 @@ import Foundation
 
 enum LoadingMessages {
     static let all: [String] = [
-        "Casting ✨ filters… hold my boba!",
+       /* "Casting ✨ filters… hold my boba!",
         "Crunching pixels like kettle chips…",
         "Tweaking the vibe parameters (scientifically, of course)…",
         "GPU is doing burpees—almost done!",
@@ -39,7 +39,37 @@ enum LoadingMessages {
         "Manifesting your best self…",
         "Negotiating with the color wheel…",
         "Loading swag assets (almost there)…",
-        "Finalizing epicness—do not unplug!"
+        "Finalizing epicness—do not unplug!",*/
+        "Personalizing look… ✨",
+        "Matching shades… 💄",
+        "Crafting routine… 📝",
+        "Sephora picks… 🛍️",
+        "Virtual try‑on… 🤳",
+        "Beauty tips… 💡",
+        "Natural glow… 🌟",
+        "Perfect combos… 🔄",
+        "Loading palette… 🎨",
+        "Next‑level glam… 🚀",
+        "Syncing profile… 📲",
+        "Highlighting you… ✨",
+        "Color match… 🎯",
+        "Beauty roadmap… 🗺️",
+        "Refining look… 🔧",
+        "Pro tutorials… 🎥",
+        "Mood tune… 🎭",
+        "Step‑by‑step… 📚",
+        "Dream vibe… ✨",
+        "Beauty upgrade… 🔒",
+        "Unlock VIP… 🔓",
+        "Premium awaits… 💎",
+        "Subscribe now… 🏷️",
+        "Pro tools… 🛠️",
+        "Go PREMIUM! 🚨",
+        "Glam boost… 🌈",
+        "Beauty perks… ⚡️",
+        "Luxe filters… 💼",
+        "Almost ready… 🥂",
+        "Get VIP access… 🌟"
     ]
 
     /// Returns a random playful loading string.

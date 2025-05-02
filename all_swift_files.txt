@@ -1,4 +1,53 @@
-2025-04-29 11:08:48
+2025-05-02 11:21:53
+//
+//  LoadingMessages.swift
+//  HairStyle
+//
+//  Created by adam on 30/04/2025.
+//
+
+
+//  LoadingMessages.swift
+//  PicUp
+//  Generated 30‑04‑2025 – A sprinkle of Gen‑Z flavoured loading banter ✨
+//
+//  Call `LoadingMessages.random()` whenever you need a fresh status line.
+//  Example:
+//      Text(LoadingMessages.random())
+//
+//  The list can be expanded or localized later.
+
+import Foundation
+
+enum LoadingMessages {
+    static let all: [String] = [
+        "Casting ✨ filters… hold my boba!",
+        "Crunching pixels like kettle chips…",
+        "Tweaking the vibe parameters (scientifically, of course)…",
+        "GPU is doing burpees—almost done!",
+        "Uploading imagination to the cloud ☁️…",
+        "Painting happy little bytes…",
+        "Assembling AI drip, please stand by…",
+        "Turning coffee into gradients…",
+        "Charging the creativity capacitor ⚡️…",
+        "Optimizing the funniness algorithm…",
+        "Feeding hamsters more voltage…",
+        "Rendering in ✨ Ultra‑Mega‑1080p ✨…",
+        "Spinning up rainbow shaders…",
+        "Injecting extra serotonin into pixels…",
+        "Reticulating splines 2.0…",
+        "Aligning photonic chakras…",
+        "Manifesting your best self…",
+        "Negotiating with the color wheel…",
+        "Loading swag assets (almost there)…",
+        "Finalizing epicness—do not unplug!"
+    ]
+
+    /// Returns a random playful loading string.
+    static func random() -> String {
+        all.randomElement() ?? "Generating… hang tight!"
+    }
+}
 import SwiftUI
 
 /// The bottom action bar for the enhancement panel.
@@ -43,6 +92,91 @@ struct BottomBar: View {
         }
         .padding(.horizontal, 7)
         .padding(.bottom, 20)
+    }
+}
+import SwiftUI
+
+// MARK: – Photo / slider view
+ struct PhotoWithRefreshOverlay: View {
+    // Inputs
+    let originalImage: UIImage?
+    let editedImage: UIImage?
+    let depthMapImage: UIImage?
+    let isGenerating: Bool
+    @Binding var sliderPosition: CGFloat
+    @Binding var showSlider: Bool
+    let onReplaceTap: () -> Void
+    let onAddTap: () -> Void
+    let onSaveTap: () -> Void
+
+    // Zoom / pan state omitted for brevity – unchanged from earlier version
+
+    var body: some View {
+        ZStack {
+            contentView
+        }
+    }
+
+    @ViewBuilder private var contentView: some View {
+        if let orig = originalImage, let edit = editedImage {
+            Image(uiImage: edit).resizable().scaledToFit()
+        } else if let edit = editedImage {
+            Image(uiImage: edit).resizable().scaledToFit()
+        } else {
+            EmptyStateView(onAddTap: onAddTap, isGenerating: isGenerating)
+        }
+    }
+}
+
+// MARK: – Empty state
+private struct EmptyStateView: View {
+    let onAddTap: () -> Void
+    let isGenerating: Bool
+
+    var body: some View {
+        VStack {
+            Spacer()
+            if isGenerating {
+                Text(LoadingMessages.random())
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white)
+                    .padding()
+            } else {
+                Button(action: onAddTap) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "photo.fill.on.rectangle.fill").font(.system(size: 40))
+                        Text("Add Image +").font(.headline)
+                    }
+                    .foregroundColor(.black)
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 10)
+                }
+            }
+            Spacer()
+        }
+    }
+}
+
+// MARK: – Stub generation worker
+ enum ImageEditingWorker {
+    static func generate(input: UIImage, prompt: String) async -> UIImage? {
+        let vm = ImageEditingViewModel()
+        do {
+            try await vm.loadModel()
+            vm.editedImage = input
+            vm.prompt = prompt
+            await MainActor.run { vm.editImage() }
+            while await MainActor.run(body: { vm.isLoading }) {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            return await MainActor.run(body: { vm.editedImage })
+        } catch {
+            print("Generation failed: \(error)")
+            return nil
+        }
     }
 }
 import SwiftUI
@@ -179,9 +313,10 @@ private struct OptionPill: View {
 
 import SwiftUI
 
-// MARK: - PhotoContainerView
-struct PhotoContainerView: View {
+// MARK: – Photo container
+ struct PhotoContainerView: View {
     @Binding var inputImage: UIImage?
+    let isGenerating: Bool
     let editedImage: UIImage?
     let depthMapImage: UIImage?
     @Binding var sliderPosition: CGFloat
@@ -192,54 +327,199 @@ struct PhotoContainerView: View {
 
     var body: some View {
         ZStack {
-            backgroundView
-                .ignoresSafeArea()
-
+            backgroundView.ignoresSafeArea()
             PhotoWithRefreshOverlay(
                 originalImage: inputImage,
                 editedImage: editedImage,
                 depthMapImage: depthMapImage,
+                isGenerating: isGenerating,
                 sliderPosition: $sliderPosition,
                 showSlider: $showSlider,
                 onReplaceTap: onReplaceTap,
                 onAddTap: onAddTap,
                 onSaveTap: onSaveTap
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    @ViewBuilder
-    private var backgroundView: some View {
+    @ViewBuilder private var backgroundView: some View {
         if let img = inputImage {
-            Image(uiImage: img)
-                .resizable()
-                .scaledToFill()
-                .blur(radius: 120)
-                .overlay(Color.black.opacity(0.4))
+            Image(uiImage: img).resizable().scaledToFill().blur(radius: 120).overlay(Color.black.opacity(0.4))
         } else {
             Color.black.opacity(0.6)
         }
     }
 }
+//  GenView.swift
+//  PicUp
+//  FINAL – original thumbnail appears **only after** Apply is tapped
+//
+//  • Thumbnail #0 is the ORIGINAL photo (labelled, no spinner) but is inserted
+//    *after* the user taps **Apply**. Until then, the strip is hidden.
+//  • Generated thumbnails (#1‑#4) follow and may show spinners.
+//  • loadImage() now simply resets thumbnails so the user can re‑apply effects.
+
 import SwiftUI
+import UIKit
 
-/// The main generation view, with a full-screen loading indicator and faster spinner.
+// MARK: – Thumbnail item model -------------------------------------------------
+private struct ThumbItem: Identifiable {
+    /// id == -1 → original; 0…3 → generated slots
+    let id: Int
+    var image: UIImage? = nil
+    var isLoading: Bool = false
+    var isOriginal: Bool { id == -1 }
+}
+
+// MARK: – GenView --------------------------------------------------------------
 struct GenView: View {
+    // MARK: Inputs
     let section: String
-    @StateObject private var viewModel = ImageEditingViewModel()
-    @State private var selectedOption: EnhancementOption?
 
+    // MARK: View‑model
+    @StateObject private var viewModel = ImageEditingViewModel()
+
+    // MARK: UI state
+    @State private var selectedOption: EnhancementOption?
     @State private var inputImage: UIImage?
     @State private var showingImagePicker = false
     @State private var sliderPosition: CGFloat = 0.5
     @State private var showSlider = false
     @State private var showSaveSuccessAlert = false
-    @State private var isSpinning = false
-    
+
+    // Thumbnails: original + up to 4 generations (populated after Apply)
+    @State private var thumbs: [ThumbItem] = []
+    @State private var currentIdx: Int? = nil      // index in thumbs
+
+    // Derived flags
+    private var isGenerating: Bool { thumbs.contains { !$0.isOriginal && $0.isLoading } }
+    private var hasThumbs: Bool { !thumbs.isEmpty }
+
+    // MARK: Environment
     @Environment(\.dismiss) private var dismiss
 
-    /// Enhancement options based on selected section
+    // MARK: Body ----------------------------------------------------------------
+    var body: some View {
+        ZStack {
+            GeometryReader { geo in
+                // Photo area --------------------------------------------------
+                PhotoContainerView(
+                    inputImage: $inputImage,
+                    isGenerating: isGenerating,
+                    editedImage: mainDisplayedImage,
+                    depthMapImage: viewModel.depthMapImage,
+                    sliderPosition: $sliderPosition,
+                    showSlider: $showSlider,
+                    onAddTap: handleReplacePhoto,
+                    onReplaceTap: handleReplacePhoto,
+                    onSaveTap: saveImage
+                )
+                .frame(width: geo.size.width, height: geo.size.height)
+                .ignoresSafeArea()
+
+                // Top buttons ------------------------------------------------
+                if inputImage != nil {
+                    TopButtons(
+                        onBack: { dismiss() },
+                        onReplace: handleReplacePhoto,
+                        onShare: shareImage,
+                        onSave: saveImage,
+                        topInset: -20
+                    )
+                    .padding(.horizontal, 16)
+                }
+
+                // Bottom area ------------------------------------------------
+                VStack {
+                    Spacer()
+                    if hasThumbs {
+                        ThumbnailsStrip(thumbs: thumbs, onSelect: { idx in currentIdx = idx }, onRetry: beginParallelGeneration)
+                    } else {
+                        EnhancementPanelView(
+                            section: section,
+                            options: enhancementOptions,
+                            selectedOption: $selectedOption,
+                            applyAction: beginParallelGeneration,
+                            cancelAction: { dismiss() }
+                        )
+                    }
+                }
+                .frame(width: geo.size.width)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        // Global overlay spinner -------------------------------------------
+        .overlay {
+            if isGenerating {
+                Color.black.opacity(0.35).ignoresSafeArea()
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(2)
+            }
+        }
+        // Image picker + save alert ----------------------------------------
+        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
+            ImagePicker(image: $inputImage)
+        }
+        .alert("Saved", isPresented: $showSaveSuccessAlert) {
+            Button("OK", role: .cancel) {}
+        } message: { Text("Image saved to Photos") }
+    }
+
+    // MARK: Helpers ------------------------------------------------------------
+    private var mainDisplayedImage: UIImage? {
+        guard let idx = currentIdx, thumbs.indices.contains(idx) else { return viewModel.editedImage }
+        return idx == 0 ? inputImage : thumbs[idx].image
+    }
+
+    // MARK: Generation ----------------------------------------------------------
+    private func beginParallelGeneration() {
+        guard let base = inputImage, let prompt = selectedOption?.prompt else { return }
+
+        // Seed thumbnails: original first, then 4 loading slots
+        thumbs = [ThumbItem(id: -1, image: base, isLoading: false)] +
+                 (0..<4).map { ThumbItem(id: $0, isLoading: true) }
+        currentIdx = 1  // focus first generated placeholder
+
+        Task.detached(priority: .userInitiated) {
+            await withTaskGroup(of: (Int, UIImage?).self) { group in
+                for idx in 0..<4 {
+                    group.addTask { (idx, await ImageEditingWorker.generate(input: base, prompt: prompt)) }
+                }
+                for await (idx, img) in group {
+                    await MainActor.run {
+                        thumbs[idx + 1].image = img   // +1 shift (index 0 is original)
+                        thumbs[idx + 1].isLoading = false
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Image / UI actions --------------------------------------------------
+    private func handleReplacePhoto() { showingImagePicker = true }
+
+    private func loadImage() {
+        guard let img = inputImage else { return }   // user cancelled
+        viewModel.editedImage = img
+        // Clear thumbnails; original will be added after next Apply
+        thumbs.removeAll()
+        currentIdx = nil
+    }
+
+    private func saveImage() {
+        guard let img = mainDisplayedImage else { return }
+        UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
+        showSaveSuccessAlert = true
+    }
+
+    private func shareImage() {
+        guard let img = mainDisplayedImage else { return }
+        let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
+        UIApplication.shared.windows.first?.rootViewController?.present(av, animated: true)
+    }
+
+    // MARK: Enhancement options (unchanged) ------------------------------------
     private var enhancementOptions: [EnhancementOption] {
         switch section {
         case "Chest":    return BodyEnhancementPrompts.breast
@@ -253,142 +533,115 @@ struct GenView: View {
         case "Face":     return BodyEnhancementPrompts.face
         case "Lips":     return BodyEnhancementPrompts.lips
         case "Waist":    return BodyEnhancementPrompts.waist
-        case "Legs":      return BodyEnhancementPrompts.leg
-        case "jewellery": return BodyEnhancementPrompts.jewellery
+        case "Legs":     return BodyEnhancementPrompts.leg
+        case "jewellery":return BodyEnhancementPrompts.jewellery
         case "Eyewear":  return BodyEnhancementPrompts.eyewear
         default:          return []
         }
     }
+}
+
+// MARK: – Thumbnails strip -----------------------------------------------------
+private struct ThumbnailsStrip: View {
+    let thumbs: [ThumbItem]
+    let onSelect: (Int) -> Void
+    let onRetry: () -> Void
+    var isGenerating: Bool { thumbs.contains { $0.isLoading && !$0.isOriginal } }
 
     var body: some View {
-        ZStack {
-            // Content container, blurred & disabled when loading
-            ZStack(alignment: .top) {
-                GeometryReader { geo in
-                    PhotoContainerView(
-                        inputImage: $inputImage,
-                        editedImage: viewModel.editedImage,
-                        depthMapImage: viewModel.depthMapImage,
-                        sliderPosition: $sliderPosition,
-                        showSlider: $showSlider,
-                        onAddTap: pickImage,
-                        onReplaceTap: pickImage,
-                        onSaveTap: saveImage
-                    )
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .ignoresSafeArea()
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                // Existing thumbnails
+                ForEach(Array(thumbs.indices), id: \.self) { idx in
+                    let thumb = thumbs[idx]
+                    ZStack(alignment: .bottom) {
+                        if let img = thumb.image {
+                            Image(uiImage: img)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
+                            Color.gray.opacity(0.3)
+                        }
 
-                    if inputImage != nil {
-                        TopButtons(
-                            onReplace: pickImage,
-                            onSave: saveImage,
-                            topInset: -20
-                        )
-                        .padding(.horizontal, 16)
+                        if thumb.isOriginal {
+                            Text("ORIGINAL")
+                                .font(.caption2.weight(.bold))
+                                .foregroundColor(.white)
+                                .padding(.vertical, 2)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.black.opacity(0.6))
+                        }
                     }
+                    .frame(width: 70, height: 70)
+                    .clipped()
+                    .cornerRadius(12)
+                    .overlay {
+                        if thumb.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        }
+                    }
+                    .onTapGesture { onSelect(idx) }
+                }
 
-                    VStack {
-                        Spacer()
-                        EnhancementPanelView(
-                            section: section,
-                            options: enhancementOptions,
-                            selectedOption: $selectedOption,
-                            applyAction: { viewModel.editImage() },
-                            cancelAction: { dismiss() }
-                        )
-                        .frame(width: geo.size.width)
+                // Retry button ------------------------------------------------
+                Button(action: onRetry) {
+                    ZStack {
+                        Color.black.opacity(0.6)
+                        Image(systemName: "arrow.clockwise")
+                            .font(.title3.weight(.semibold))
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 70, height: 70)
+                    .cornerRadius(12)
+                    .overlay {
+                        if isGenerating {
+                            // disabled look when still generating
+                            Color.black.opacity(0.4).cornerRadius(12)
+                        }
                     }
                 }
+                .disabled(isGenerating)
             }
-            .blur(radius: viewModel.isLoading ? 12 : 0)
-            .disabled(viewModel.isLoading)
-            // Remove horizontal padding when loading to ensure full-width blur
-            .padding(.horizontal, viewModel.isLoading ? 0 : 8)
-
-            // Loading overlay with faster spinner
-            if viewModel.isLoading {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(2)
-                    //.rotationEffect(.degrees(isSpinning ? 360 : 0))
-                    .animation(.linear(duration: 0.6).repeatForever(autoreverses: false), value: isSpinning)
-                    .onAppear { isSpinning = true }
-                    
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        
-        .navigationBarBackButtonHidden(true)
-        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
-            ImagePicker(image: $inputImage)
-        }
-        .alert("Saved", isPresented: $showSaveSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Image saved successfully to your Photos.")
-        }
-        .onAppear {
-            Task {
-                do {
-                    try await viewModel.loadModel()
-                } catch {
-                    viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)"
-                }
-            }
-            selectedOption = enhancementOptions.first
-            viewModel.prompt = selectedOption?.prompt ?? ""
-        }
-        .onChange(of: selectedOption) { new in
-                    viewModel.prompt = new?.prompt ?? ""
-                }
-        
-    }
-
-    private func pickImage() {
-        showingImagePicker = true
-    }
-
-    private func loadImage() {
-        guard let img = inputImage else { return }
-        viewModel.editedImage = img
-    }
-
-    private func saveImage() {
-        guard let img = viewModel.editedImage else { return }
-        UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
-        showSaveSuccessAlert = true
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
     }
 }
 
-// Top button row extracted
+// MARK: – Top buttons (unchanged) ---------------------------------------------
 private struct TopButtons: View {
+    let onBack: () -> Void
     let onReplace: () -> Void
+    let onShare: () -> Void
     let onSave: () -> Void
     let topInset: CGFloat
 
     var body: some View {
-        HStack {
-            Button(action: onReplace) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Circle())
-            }
+        HStack(spacing: 12) {
+            Button(action: onBack)    { Image(systemName: "chevron.left").modifier(circleIcon) }
+            Button(action: onReplace) { Image(systemName: "arrow.triangle.2.circlepath").modifier(circleIcon) }
             Spacer()
-            Button(action: onSave) {
-                Image(systemName: "square.and.arrow.down")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Circle())
+            HStack(spacing: 12) {
+                Button(action: onShare) { Image(systemName: "paperplane.fill").modifier(circleIcon) }
+                Button(action: onSave)  { Image(systemName: "square.and.arrow.down").modifier(circleIcon) }
             }
         }
         .padding(.top, topInset + 20)
+    }
+    private var circleIcon: some ViewModifier { CircleIcon() }
+}
+
+private struct CircleIcon: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 20, weight: .medium))
+            .foregroundColor(.white)
+            .frame(width: 36, height: 36)
+            .background(Color.black.opacity(0.6))
+            .clipShape(Circle())
     }
 }
 import SwiftUI
@@ -431,7 +684,7 @@ struct CatalogView: View {
 
                     // MARK: — Header
                     HStack {
-                        Text("PicUp ✨")
+                        Text("BodyEditor Ai")
                             .font(.largeTitle).fontWeight(.bold)
                             .foregroundStyle(
                                 LinearGradient(
@@ -837,454 +1090,6 @@ class ImageEditingViewModel: ObservableObject {
     
 }
 //
-//  CloudinaryManager.swift
-//  HairStyle
-//
-//  Created by adam on 25/03/2025.
-//
-
-
-import Cloudinary
-import UIKit
-
-struct CloudinaryManager {
-    static let shared: CLDCloudinary = {
-        let config = CLDConfiguration(
-            cloudName: "dao9lckfd"
-        )
-        return CLDCloudinary(configuration: config)
-    }()
-    
-    static func upload(image: UIImage, completion: @escaping (String?) -> Void) {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            completion(nil)
-            return
-        }
-        let params = CLDUploadRequestParams().setFolder("photoGenerations").setTags(["myGen"])  // Add your chosen tag here
-
-        CloudinaryManager.shared.createUploader().upload(data: imageData,
-                                                         uploadPreset: "HairStyle01",
-                                                         params: params) { result, error in
-            if let error = error {
-                print("Cloudinary upload error: \(error)")
-                completion(nil)
-            } else if let result = result {
-                // Return the secure URL string for later use
-                completion(result.secureUrl)
-            }
-        }
-    }
-}
-import SwiftUI
-
-struct CloudinaryImage: Decodable, Identifiable {
-    let public_id: String
-    let version: Int
-    let format: String
-    
-    var id: String { public_id }
-    
-    // Construct the URL for the original uploaded image
-    var imageUrl: String {
-        "https://res.cloudinary.com/dao9lckfd/image/upload/v\(version)/\(public_id).\(format)"
-    }
-}
-
-struct ImageListResponse: Decodable {
-    let resources: [CloudinaryImage]
-}
-
-class FeedViewModel: ObservableObject {
-    @Published var images: [CloudinaryImage] = []
-    
-    func loadImages() {
-        // Replace "YOUR_CLOUD_NAME" and "myGenerations" with your actual values:
-        guard let url = URL(string: "https://res.cloudinary.com/dao9lckfd/image/list/myGen.json") else { return }
-        
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            if let error = error {
-                print("Error fetching feed images: \(error)")
-                return
-            }
-            if let data = data {
-                do {
-                    let listResponse = try JSONDecoder().decode(ImageListResponse.self, from: data)
-                    DispatchQueue.main.async {
-                        self.images = listResponse.resources
-                    }
-                } catch {
-                    print("Failed to decode Cloudinary image list: \(error)")
-                }
-            }
-        }.resume()
-    }
-}
-//
-//  FeedView.swift
-//  HairStyle
-//
-//  Created by adam on 25/03/2025.
-//
-
-
-import SwiftUI
-
-struct FeedView: View {
-    @StateObject private var viewModel = FeedViewModel()
-    
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(viewModel.images) { image in
-                        AsyncImage(url: URL(string: image.imageUrl)) { phase in
-                            switch phase {
-                            case .empty:
-                                ProgressView()
-                                    .frame(width: 150, height: 150)
-                            case .success(let img):
-                                img
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 150, height: 150)
-                                    .clipped()
-                            case .failure:
-                                Image(systemName: "photo")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 150, height: 150)
-                                    .clipped()
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Feed")
-            .onAppear {
-                viewModel.loadImages()
-            }
-        }
-    }
-}
-import Foundation
-
-struct HairItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let image: String?
-    let prompt: String
-}
-
-struct BeautyDataPrompts {
-    static let categories = [
-        "Hairstyle",
-        "Hair Color",
-        "Wardrobe",
-        "Expressions",
-        "Filter Fusion",
-        "Background Changer",
-        "Portrait Perfection",
-        "Motion Effects",
-        "Collage Crafter",
-        "Text & Hashtag Stylizer",
-        "Professions",
-        "Animals",
-        "Places",
-        "Adventures"
-    ]
-    
-    static let items: [String: [HairItem]] = [
-        "Hairstyle": [
-            HairItem(name: "Long Straight", image: nil, prompt: "Respectfully enhance chest curvature"),
-            HairItem(name: "Bob Cut", image: nil, prompt: "Change to bob cut hairstyle"),
-            HairItem(name: "Wavy", image: nil, prompt: "Make the hair wavy and voluminous"),
-            HairItem(name: "Hippie Perm", image: nil, prompt: "Transform to hippie perm style"),
-            HairItem(name: "Full Bangs", image: nil, prompt: "Add full bangs to the hairstyle"),
-            HairItem(name: "Curly", image: nil, prompt: "Transform hair into loose, natural curls"),
-            HairItem(name: "Pixie Cut", image: nil, prompt: "Switch to a trendy pixie cut hairstyle"),
-            // New items
-            HairItem(name: "Messy Bun", image: nil, prompt: "Do a messy bun"),
-            HairItem(name: "Braided", image: nil, prompt: "Try a simple braid"),
-            HairItem(name: "Ponytail", image: nil, prompt: "Switch to a ponytail"),
-            HairItem(name: "Side Sweep", image: nil, prompt: "Style with side sweep"),
-            HairItem(name: "Top Knot", image: nil, prompt: "Rock a top knot"),
-            HairItem(name: "Layered", image: nil, prompt: "Add layered cuts"),
-            HairItem(name: "Asymmetrical", image: nil, prompt: "Go for an asymmetrical cut"),
-            HairItem(name: "Fishtail Braid", image: nil, prompt: "Try a fishtail braid"),
-            HairItem(name: "Undercut", image: nil, prompt: "Add a trendy undercut"),
-            HairItem(name: "Spiral Curls", image: nil, prompt: "Rock spiral curls")
-        ],
-        "Hair Color": [
-            HairItem(name: "Blonde", image: nil, prompt: "Change hair color to blonde"),
-            HairItem(name: "Brunette", image: nil, prompt: "Change hair color to brunette"),
-            HairItem(name: "Red", image: nil, prompt: "Change hair color to vibrant red"),
-            HairItem(name: "Black", image: nil, prompt: "Change hair color to black"),
-            HairItem(name: "Silver", image: nil, prompt: "Change hair color to gray/silver"),
-            HairItem(name: "Pastel Pink", image: nil, prompt: "Change hair color to soft pastel pink"),
-            HairItem(name: "Electric Blue", image: nil, prompt: "Change hair color to vibrant electric blue"),
-            // New items
-            HairItem(name: "Rose Gold", image: nil, prompt: "Change hair color togold"),
-            HairItem(name: "Platinum", image: nil, prompt: "Change hair color to platinum blonde"),
-            HairItem(name: "Auburn", image: nil, prompt: "Change hair color to auburn shades"),
-            HairItem(name: "Copper", image: nil, prompt: "Change hair color to copper tones"),
-            HairItem(name: "Jet Black", image: nil, prompt: "Change hair color to jet black"),
-            HairItem(name: "Lilac", image: nil, prompt: "Change hair color to lilac"),
-            HairItem(name: "Mint", image: nil, prompt: "Change hair color to mint tones"),
-            HairItem(name: "Neon Green", image: nil, prompt: "Change hair color to Bright neon green"),
-            HairItem(name: "Sunset Ombre", image: nil, prompt: "Change hair color to sunset ombre"),
-            HairItem(name: "Icy Blue", image: nil, prompt: "Change hair color to icy blue hues")
-        ],
-        "Wardrobe": [
-            HairItem(name: "Casual Chic", image: nil, prompt: "Transform into a casual chic outfit in one tap"),
-            HairItem(name: "Formal Elegance", image: nil, prompt: "Switch to an elegant formal ensemble effortlessly"),
-            HairItem(name: "Sporty", image: nil, prompt: "Adopt a sporty and dynamic look"),
-            HairItem(name: "Vintage", image: nil, prompt: "Embrace a timeless vintage wardrobe style"),
-            HairItem(name: "Urban Street", image: nil, prompt: "Show off an edgy urban street style"),
-            HairItem(name: "Bohemian", image: nil, prompt: "Adopt a free-spirited bohemian wardrobe style"),
-            HairItem(name: "Business Casual", image: nil, prompt: "Switch to a sharp business casual outfit"),
-            // New items
-            HairItem(name: "Edgy Rock", image: nil, prompt: "Rock edgy vibes"),
-            HairItem(name: "Summer Vibes", image: nil, prompt: "Wear summer chic"),
-            HairItem(name: "Retro", image: nil, prompt: "Go retro style"),
-            HairItem(name: "Glam Night", image: nil, prompt: "Glam up for night"),
-            HairItem(name: "Cozy Sweater", image: nil, prompt: "Sport a cozy sweater"),
-            HairItem(name: "Streetwear", image: nil, prompt: "Try cool streetwear"),
-            HairItem(name: "Festival", image: nil, prompt: "Festival-ready look"),
-            HairItem(name: "Minimalist", image: nil, prompt: "Keep it minimalist"),
-            HairItem(name: "Punk", image: nil, prompt: "Adopt a punk look"),
-            HairItem(name: "Casual Denim", image: nil, prompt: "Go with denim style")
-        ],
-        "Expressions": [
-            HairItem(name: "Happy Smile", image: nil, prompt: "Apply a cheerful, smiling expression"),
-            HairItem(name: "Serene", image: nil, prompt: "Adopt a calm and serene facial expression"),
-            HairItem(name: "Playful", image: nil, prompt: "Show a playful and engaging expression"),
-            HairItem(name: "Confident", image: nil, prompt: "Convey a confident and assertive look"),
-            HairItem(name: "Mysterious", image: nil, prompt: "Add a touch of mystery to your expression"),
-            HairItem(name: "Surprised", image: nil, prompt: "Convey a surprised and animated expression"),
-            HairItem(name: "Flirty", image: nil, prompt: "Apply a subtle flirty look to your face"),
-            // New items
-            HairItem(name: "Sassy", image: nil, prompt: "Show a sassy smirk"),
-            HairItem(name: "Cool", image: nil, prompt: "Stay cool and calm"),
-            HairItem(name: "Dreamy", image: nil, prompt: "Look dreamy and soft"),
-            HairItem(name: "Cheeky", image: nil, prompt: "Give a cheeky grin"),
-            HairItem(name: "Bold", image: nil, prompt: "Exude bold energy"),
-            HairItem(name: "Gleeful", image: nil, prompt: "Display gleeful joy"),
-            HairItem(name: "Relaxed", image: nil, prompt: "Keep a relaxed look"),
-            HairItem(name: "Quirky", image: nil, prompt: "Show quirky vibes"),
-            HairItem(name: "Energetic", image: nil, prompt: "Radiate energetic vibes"),
-            HairItem(name: "Smirking", image: nil, prompt: "Flash a playful smirk")
-        ],
-        "Filter Fusion": [
-            HairItem(name: "Artistic Blend", image: nil, prompt: "Blend multiple artistic filters for a unique look"),
-            HairItem(name: "Vintage Vibes", image: nil, prompt: "Mix retro and modern filters for vintage vibes"),
-            HairItem(name: "Cinematic Look", image: nil, prompt: "Blend cinematic filters for drama"),
-            HairItem(name: "Dreamy Glow", image: nil, prompt: "Combine soft filters for a dreamy glow"),
-            HairItem(name: "Bold Contrast", image: nil, prompt: "Merge high contrast for impact"),
-            HairItem(name: "Color Pop", image: nil, prompt: "Fuse vibrant filters for pop colors"),
-            HairItem(name: "Monochrome Magic", image: nil, prompt: "Blend B&W with a twist"),
-            // New items
-            HairItem(name: "Glitter Spark", image: nil, prompt: "Add glitter spark filters"),
-            HairItem(name: "Neon Burst", image: nil, prompt: "Fuse neon burst effects"),
-            HairItem(name: "Soft Haze", image: nil, prompt: "Apply a soft haze filter"),
-            HairItem(name: "Retro Pop", image: nil, prompt: "Use retro pop effects"),
-            HairItem(name: "Light Leak", image: nil, prompt: "Blend in light leak"),
-            HairItem(name: "Funky Frame", image: nil, prompt: "Try a funky frame filter"),
-            HairItem(name: "Pastel Dream", image: nil, prompt: "Use pastel dream vibes"),
-            HairItem(name: "Shadow Play", image: nil, prompt: "Mix in shadow play"),
-            HairItem(name: "Vivid Boost", image: nil, prompt: "Boost with vivid filters"),
-            HairItem(name: "Crystal Clear", image: nil, prompt: "Opt for a crystal clear filter")
-        ],
-        "Background Changer": [
-            HairItem(name: "Dynamic Backdrop", image: nil, prompt: "Swap dull backdrops for dynamic scenes"),
-            HairItem(name: "Urban Skyline", image: nil, prompt: "Replace with a modern urban skyline"),
-            HairItem(name: "Nature Escape", image: nil, prompt: "Switch to a serene natural landscape"),
-            HairItem(name: "Abstract Art", image: nil, prompt: "Change to an abstract design"),
-            HairItem(name: "Beach Paradise", image: nil, prompt: "Transform into a beach scene"),
-            HairItem(name: "Cosmic Space", image: nil, prompt: "Set a cosmic background"),
-            HairItem(name: "Studio Setting", image: nil, prompt: "Use a minimalist studio background"),
-            // New items
-            HairItem(name: "City Lights", image: nil, prompt: "Swap to city lights"),
-            HairItem(name: "Countryside", image: nil, prompt: "Switch to countryside view"),
-            HairItem(name: "Night Sky", image: nil, prompt: "Set a starry night sky"),
-            HairItem(name: "Rainbow", image: nil, prompt: "Add a rainbow background"),
-            HairItem(name: "Modern Loft", image: nil, prompt: "Go for a modern loft"),
-            HairItem(name: "Pastel Wall", image: nil, prompt: "Switch to a pastel wall"),
-            HairItem(name: "Neon City", image: nil, prompt: "Swap to neon city"),
-            HairItem(name: "Zen Garden", image: nil, prompt: "Choose a zen garden"),
-            HairItem(name: "Seaside", image: nil, prompt: "Use a seaside view"),
-            HairItem(name: "Graffiti", image: nil, prompt: "Switch to graffiti art")
-        ],
-        "Portrait Perfection": [
-            HairItem(name: "Selfie Enhancer", image: nil, prompt: "Enhance selfies with perfect lighting"),
-            HairItem(name: "Flawless Skin", image: nil, prompt: "Smooth and perfect your skin"),
-            HairItem(name: "Eye Catcher", image: nil, prompt: "Make your eyes pop"),
-            HairItem(name: "Lip Pop", image: nil, prompt: "Boost lip color instantly"),
-            HairItem(name: "Face Sculpt", image: nil, prompt: "Refine your facial contours"),
-            HairItem(name: "Brighten Up", image: nil, prompt: "Brighten and add clarity"),
-            HairItem(name: "Natural Radiance", image: nil, prompt: "Enhance natural features"),
-            // New items
-            HairItem(name: "Clear Complexion", image: nil, prompt: "Clear up your skin"),
-            HairItem(name: "Smooth Contours", image: nil, prompt: "Smooth out your contours"),
-            HairItem(name: "Eye Sparkle", image: nil, prompt: "Add sparkle to your eyes"),
-            HairItem(name: "Lip Gloss", image: nil, prompt: "Shine with lip gloss"),
-            HairItem(name: "Glow Up", image: nil, prompt: "Get that glow up"),
-            HairItem(name: "Fresh Look", image: nil, prompt: "Enhance your fresh look"),
-            HairItem(name: "Radiant Aura", image: nil, prompt: "Boost your radiant aura"),
-            HairItem(name: "Flawless Filter", image: nil, prompt: "Apply a flawless filter"),
-            HairItem(name: "Vivid Eyes", image: nil, prompt: "Enhance vivid eyes"),
-            HairItem(name: "Perfect Pout", image: nil, prompt: "Define your pout")
-        ],
-        "Motion Effects": [
-            HairItem(name: "Dynamic Motion", image: nil, prompt: "Add dynamic motion effects"),
-            HairItem(name: "Subtle Blur", image: nil, prompt: "Apply a soft motion blur"),
-            HairItem(name: "Flowing Light", image: nil, prompt: "Add flowing light effects"),
-            HairItem(name: "Speed Trail", image: nil, prompt: "Create motion trails"),
-            HairItem(name: "Ripple Effect", image: nil, prompt: "Simulate a ripple effect"),
-            HairItem(name: "Vivid Sparks", image: nil, prompt: "Overlay vivid sparks"),
-            HairItem(name: "Glide Transition", image: nil, prompt: "Smoothly blend motion elements"),
-            // New items
-            HairItem(name: "Quick Zoom", image: nil, prompt: "Add a quick zoom"),
-            HairItem(name: "Time Warp", image: nil, prompt: "Try a time warp effect"),
-            HairItem(name: "Slide Shift", image: nil, prompt: "Use a slide shift"),
-            HairItem(name: "Bouncy Beat", image: nil, prompt: "Sync with a bouncy beat"),
-            HairItem(name: "Flash Flicker", image: nil, prompt: "Apply a flash flicker"),
-            HairItem(name: "Motion Burst", image: nil, prompt: "Create a motion burst"),
-            HairItem(name: "Wave Motion", image: nil, prompt: "Use wave motion"),
-            HairItem(name: "Strobe Light", image: nil, prompt: "Add strobe light flash"),
-            HairItem(name: "Glitch Pop", image: nil, prompt: "Try a glitch pop effect"),
-            HairItem(name: "Vibe Spin", image: nil, prompt: "Spin with vibe motion")
-        ],
-        "Collage Crafter": [
-            HairItem(name: "Stylish Collage", image: nil, prompt: "Arrange photos into a stylish collage"),
-            HairItem(name: "Grid Layout", image: nil, prompt: "Organize photos in a grid"),
-            HairItem(name: "Freestyle Arrangement", image: nil, prompt: "Arrange photos creatively"),
-            HairItem(name: "Story Montage", image: nil, prompt: "Compile photos into a montage"),
-            HairItem(name: "Thematic Collage", image: nil, prompt: "Create a themed collage"),
-            HairItem(name: "Artistic Mosaic", image: nil, prompt: "Craft an artistic mosaic"),
-            HairItem(name: "Dynamic Layers", image: nil, prompt: "Layer photos dynamically"),
-            // New items
-            HairItem(name: "Photo Burst", image: nil, prompt: "Create a photo burst"),
-            HairItem(name: "Snap Mix", image: nil, prompt: "Mix snaps creatively"),
-            HairItem(name: "Pic Grid", image: nil, prompt: "Arrange pics in a grid"),
-            HairItem(name: "Frame Play", image: nil, prompt: "Play with frame styles"),
-            HairItem(name: "Quick Collage", image: nil, prompt: "Craft a quick collage"),
-            HairItem(name: "Layout Love", image: nil, prompt: "Love your layout"),
-            HairItem(name: "Instant Montage", image: nil, prompt: "Make an instant montage"),
-            HairItem(name: "Creative Cluster", image: nil, prompt: "Cluster photos stylishly"),
-            HairItem(name: "Vibe Collage", image: nil, prompt: "Blend your vibe collage"),
-            HairItem(name: "Modern Patchwork", image: nil, prompt: "Design a modern patchwork")
-        ],
-        "Text & Hashtag Stylizer": [
-            HairItem(name: "Dynamic Text", image: nil, prompt: "Generate dynamic text overlays"),
-            HairItem(name: "Bold Caption", image: nil, prompt: "Create bold text captions"),
-            HairItem(name: "Elegant Script", image: nil, prompt: "Apply elegant script fonts"),
-            HairItem(name: "Hashtag Pop", image: nil, prompt: "Design catchy hashtag overlays"),
-            HairItem(name: "Animated Text", image: nil, prompt: "Animate your text"),
-            HairItem(name: "Shadow Effect", image: nil, prompt: "Add a shadow to text"),
-            HairItem(name: "Color Gradient", image: nil, prompt: "Apply a color gradient to text"),
-            // New items
-            HairItem(name: "Fresh Fonts", image: nil, prompt: "Switch up with fresh fonts"),
-            HairItem(name: "Quick Tag", image: nil, prompt: "Add a quick tag"),
-            HairItem(name: "Text Swipe", image: nil, prompt: "Swipe in cool text"),
-            HairItem(name: "Hashtag Wave", image: nil, prompt: "Ride the hashtag wave"),
-            HairItem(name: "Font Flash", image: nil, prompt: "Flash a bold font"),
-            HairItem(name: "Simple Script", image: nil, prompt: "Use simple script"),
-            HairItem(name: "Text Punch", image: nil, prompt: "Give text a punch"),
-            HairItem(name: "Hashtag Hype", image: nil, prompt: "Boost hashtag hype"),
-            HairItem(name: "Smooth Overlay", image: nil, prompt: "Overlay text smoothly"),
-            HairItem(name: "Modern Tag", image: nil, prompt: "Style with modern tag")
-        ],
-        "Professions": [
-            HairItem(name: "Doctor", image: nil, prompt: "Adopt a doctor's look"),
-            HairItem(name: "Chef", image: nil, prompt: "Transform into a chef"),
-            HairItem(name: "Artist", image: nil, prompt: "Embrace an artist vibe"),
-            HairItem(name: "Business Executive", image: nil, prompt: "Sport a business suit"),
-            HairItem(name: "Engineer", image: nil, prompt: "Rock an engineer style"),
-            HairItem(name: "Lawyer", image: nil, prompt: "Show a lawyer's look"),
-            HairItem(name: "Military", image: nil, prompt: "Exude military discipline"),
-            // New items
-            HairItem(name: "Teacher", image: nil, prompt: "Show a teacher vibe"),
-            HairItem(name: "Musician", image: nil, prompt: "Rock a musician look"),
-            HairItem(name: "Pilot", image: nil, prompt: "Adopt a pilot style"),
-            HairItem(name: "Nurse", image: nil, prompt: "Wear a nurse uniform"),
-            HairItem(name: "Writer", image: nil, prompt: "Get a writer's touch"),
-            HairItem(name: "Designer", image: nil, prompt: "Style as a designer"),
-            HairItem(name: "Architect", image: nil, prompt: "Show an architect look"),
-            HairItem(name: "Photographer", image: nil, prompt: "Snap a photographer vibe"),
-            HairItem(name: "Dancer", image: nil, prompt: "Exude dancer flair"),
-            HairItem(name: "Entrepreneur", image: nil, prompt: "Show entrepreneur energy")
-        ],
-        "Animals": [
-            HairItem(name: "Cat Elegance", image: nil, prompt: "Add a sleek cat"),
-            HairItem(name: "Dog Charm", image: nil, prompt: "Add a playful dog"),
-            HairItem(name: "Lion's Mane", image: nil, prompt: "Add a bold lion"),
-            HairItem(name: "Fox Features", image: nil, prompt: "Add a clever fox"),
-            HairItem(name: "Rabbit Softness", image: nil, prompt: "Add a gentle rabbit"),
-            HairItem(name: "Panda Cool", image: nil, prompt: "Add a relaxed panda"),
-            HairItem(name: "Eagle Vision", image: nil, prompt: "Add a fierce eagle"),
-            // New items
-            HairItem(name: "Butterfly", image: nil, prompt: "Add a cute butterfly"),
-            HairItem(name: "Penguin", image: nil, prompt: "Use a playful penguin"),
-            HairItem(name: "Koala", image: nil, prompt: "Bring in a chill koala"),
-            HairItem(name: "Horse", image: nil, prompt: "Show a noble horse"),
-            HairItem(name: "Swan", image: nil, prompt: "Add a graceful swan"),
-            HairItem(name: "Dolphin", image: nil, prompt: "Splash in a dolphin"),
-            HairItem(name: "Bear", image: nil, prompt: "Bring a cuddly bear"),
-            HairItem(name: "Parrot", image: nil, prompt: "Show a colorful parrot"),
-            HairItem(name: "Turtle", image: nil, prompt: "Add a chill turtle"),
-            HairItem(name: "Owl", image: nil, prompt: "Include a wise owl")
-        ],
-        "Places": [
-            HairItem(name: "Parisian Street", image: nil, prompt: "Set a chic Paris street"),
-            HairItem(name: "Tropical Paradise", image: nil, prompt: "Switch to a tropical vibe"),
-            HairItem(name: "Futuristic City", image: nil, prompt: "Adopt a futuristic cityscape"),
-            HairItem(name: "Mountain Retreat", image: nil, prompt: "Change to a mountain retreat"),
-            HairItem(name: "Desert Oasis", image: nil, prompt: "Transform to a desert oasis"),
-            HairItem(name: "Historic Castle", image: nil, prompt: "Set against a historic castle"),
-            HairItem(name: "Urban Graffiti", image: nil, prompt: "Embrace urban graffiti art"),
-            // New items
-            HairItem(name: "Beachfront", image: nil, prompt: "Set a beachfront scene"),
-            HairItem(name: "Snowy Village", image: nil, prompt: "Switch to a snowy village"),
-            HairItem(name: "Countryside Farm", image: nil, prompt: "Go for a farm vibe"),
-            HairItem(name: "Lakeside", image: nil, prompt: "Choose a lakeside view"),
-            HairItem(name: "City Park", image: nil, prompt: "Opt for a lively park"),
-            HairItem(name: "Rooftop", image: nil, prompt: "Set a rooftop vibe"),
-            HairItem(name: "Garden", image: nil, prompt: "Switch to a blooming garden"),
-            HairItem(name: "Harbor", image: nil, prompt: "Set a harbor backdrop"),
-            HairItem(name: "Festival Grounds", image: nil, prompt: "Set festive grounds"),
-            HairItem(name: "Canyon", image: nil, prompt: "Show a majestic canyon")
-        ],
-        "Adventures": [
-            HairItem(name: "Sky Jumping", image: nil, prompt: "Set a sky jumping thrill"),
-            HairItem(name: "Monk's Trail Hike", image: nil, prompt: "Try a monk's trail hike"),
-            HairItem(name: "Mountain Climb", image: nil, prompt: "Climb a rugged mountain"),
-            HairItem(name: "Jungle Safari", image: nil, prompt: "Embrace a jungle safari"),
-            HairItem(name: "Desert Rally", image: nil, prompt: "Hit a desert rally"),
-            HairItem(name: "Underwater Expedition", image: nil, prompt: "Dive into underwater fun"),
-            HairItem(name: "Snowboarding", image: nil, prompt: "Enjoy snowboarding thrills"),
-            // New items
-            HairItem(name: "Surfing", image: nil, prompt: "Catch a surfing wave"),
-            HairItem(name: "Road Trip", image: nil, prompt: "Hit the road trip"),
-            HairItem(name: "Camping", image: nil, prompt: "Go camping outdoors"),
-            HairItem(name: "Bungee Jump", image: nil, prompt: "Try bungee jumping"),
-            HairItem(name: "Scuba Dive", image: nil, prompt: "Dive into adventure"),
-            HairItem(name: "Hot Air Balloon", image: nil, prompt: "Fly in a hot air balloon"),
-            HairItem(name: "Zip Lining", image: nil, prompt: "Experience zip lining"),
-            HairItem(name: "Kayaking", image: nil, prompt: "Paddle with kayaking vibes"),
-            HairItem(name: "Hiking Trail", image: nil, prompt: "Hit the hiking trail"),
-            HairItem(name: "Skiing", image: nil, prompt: "Enjoy a skiing adventure")
-        ]
-    ]
-}
-//
 //  EnhancementOption.swift
 //  HairStyle
 //
@@ -1312,317 +1117,100 @@ struct EnhancementOption: Identifiable, Equatable {
 
 enum BodyEnhancementPrompts {
     static let breast: [EnhancementOption] = [
-        EnhancementOption(
-            id: "round",
-            title: "Round",
-            subtitle: nil,
-            prompt: "Respectfully enhance chest curvature",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "heart_shaped",
-            title: "Heart-shaped",
-            subtitle: "Limited-time free",
-            prompt: "Enhance chest into a heart-shaped bust",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "superlift",
-            title: "Superlift",
-            subtitle: nil,
-            prompt: "Apply superlift enhancement to chest",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "pointy",
-            title: "Pointy Nipple",
-            subtitle: nil,
-            prompt: "Respectfully feature pointy nipple visibly forming under a realistic fabric ",
-            isFree: false
-        )
-    ]
+           EnhancementOption(id: "round",               title: "Round",                subtitle: nil,                prompt: "Respectfully enhance chest curvature",                                             isFree: true),
+           EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Enhance chest into a heart‑shaped bust",                                         isFree: true),
+           EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to chest",                                           isFree: false),
+           EnhancementOption(id: "natural_lift",        title: "Natural Lift",        subtitle: nil,                prompt: "Apply natural lift enhancement to chest",                             isFree: false),
+           EnhancementOption(id: "subtle_volume",       title: "Subtle Volume",       subtitle: nil,                prompt: "Respectfully but minimally enhance chest curvature",                           isFree: true),
+           EnhancementOption(id: "snatched_cleavage",   title: "Snatched Cleavage",   subtitle: "Limited‑time free", prompt: "Respectfully but subtly enhance chest curvature",                      isFree: true)
+       ]
 
-    static let belly: [EnhancementOption] = [
-        EnhancementOption(
-            id: "flat_abs",
-            title: "Flat Abs",
-            subtitle: nil,
-            prompt: "Respectfully slim and flatten the belly and waist",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "hourglass",
-            title: "Hourglass",
-            subtitle: nil,
-            prompt: "Respectfully enhance the waist-to-hip curve",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "defined_abs",
-            title: "Defined Abs",
-            subtitle: nil,
-            prompt: "Respectfully Enhance the abdominal abs",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "sculpted_core",
-            title: "Sculpted Core",
-            subtitle: nil,
-            prompt: "Respectfully Sculpt and refine the core muscles for a balanced",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "chiseled_midsection",
-            title: "Chiseled Midsection",
-            subtitle: nil,
-            prompt: "Respectfully enhance the lines of the midsection abs",
-            isFree: false
-        )
-    ]
+       // MARK: – Belly / Core
+       static let belly: [EnhancementOption] = [
+           EnhancementOption(id: "flat_abs",            title: "Flat Abs",            subtitle: nil,                prompt: "Respectfully slim and flatten the belly and waist",                               isFree: true),
+           EnhancementOption(id: "hourglass",           title: "Hourglass",           subtitle: nil,                prompt: "Respectfully enhance the waist‑to‑hip curve",                                     isFree: false),
+           EnhancementOption(id: "defined_abs",         title: "Defined Abs",         subtitle: nil,                prompt: "Respectfully enhance the abdominal abs",                                        isFree: false),
+           EnhancementOption(id: "sculpted_core",       title: "Sculpted Core",       subtitle: nil,                prompt: "Respectfully sculpt and refine the core muscles for balance",                   isFree: true),
+           EnhancementOption(id: "chiseled_midsection", title: "Chiseled Midsection", subtitle: nil,                prompt: "Respectfully enhance the lines of the midsection abs",                         isFree: false),
+           EnhancementOption(id: "snatched_waist",      title: "Snatched Waist",      subtitle: "Limited‑time free", prompt: "Respectfully cinch the waist for a snatched silhouette",                         isFree: true),
+           EnhancementOption(id: "vacuum_slim",         title: "Vacuum Slim",         subtitle: nil,                prompt: "Respectfully apply stomach‑vacuum slimming for a flat profile",                 isFree: false),
+           EnhancementOption(id: "core_carve",          title: "Core Carve",          subtitle: nil,                prompt: "Respectfully carve deep core lines for athletic definition",                   isFree: false)
+       ]
 
-    static let buttock: [EnhancementOption] = [
-        EnhancementOption(
-            id: "lift",
-            title: "Lift",
-            subtitle: nil,
-            prompt: "Lift and sculpt the buttocks for a firmer look",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "round",
-            title: "Round",
-            subtitle: nil,
-            prompt: "Enhance roundness for a curvier silhouette",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "heart_shaped",
-            title: "Heart-shaped",
-            subtitle: "Limited-time free",
-            prompt: "Respectfully reshape glutes into a heart-shaped form",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "superlift",
-            title: "Superlift",
-            subtitle: nil,
-            prompt: "Apply superlift enhancement to buttocks for maximum elevation",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "sculpted_glutes",
-            title: "Sculpted Glutes",
-            subtitle: nil,
-            prompt: "Respectfully define and sculpt the glute muscles for a toned look",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "perky",
-            title: "Perky",
-            subtitle: nil,
-            prompt: "Respectfully perk up the buttocks for a youthful, lifted appearance",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "voluminous",
-            title: "Voluminous",
-            subtitle: nil,
-            prompt: "Enhance volume and roundness for fuller, more pronounced glutes",
-            isFree: false
-        )
-    ]
-    static let muscle: [EnhancementOption] = [
-        EnhancementOption(
-            id: "tone",
-            title: "Upper Body",
-            subtitle: nil,
-            prompt: "Respectfully increase the muscle shape on neck and upper body",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "sculpt",
-            title: "Arms & Forearms",
-            subtitle: nil,
-            prompt: "Respectfully enhance the muscle shape on the arms and forearms",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "bicep_peak",
-            title: "Bicep Peak",
-            subtitle: nil,
-            prompt: "Respectfully accentuate the bicep peak for a more pronounced flex",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "tricep_tone",
-            title: "Tricep Tone",
-            subtitle: nil,
-            prompt: "Respectfully slim and tone the triceps for sleek definition",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "vascular_forearms",
-            title: "Vascular Forearms",
-            subtitle: "Limited-time free",
-            prompt: "Respectfully highlight forearm veins and muscle separation",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "forearm_definition",
-            title: "Forearm Definition",
-            subtitle: nil,
-            prompt: "Respectfully define the forearm muscles for enhanced detail",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "arm_strength",
-            title: "Strength Boost",
-            subtitle: nil,
-            prompt: "Respectfully add subtle bulk to arms",
-            isFree: false
-        )
-    ]
+       // MARK: – Buttock / Glutes
+       static let buttock: [EnhancementOption] = [
+           EnhancementOption(id: "lift",                title: "Lift",                subtitle: nil,                prompt: "Lift and sculpt the buttocks for a firmer look",                              isFree: true),
+           EnhancementOption(id: "round",               title: "Round",               subtitle: nil,                prompt: "Enhance roundness for a curvier silhouette",                                   isFree: false),
+           EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Respectfully reshape glutes into a heart‑shaped form",                          isFree: true),
+           EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to buttocks for maximum elevation",               isFree: false),
+           EnhancementOption(id: "sculpted_glutes",     title: "Sculpted Glutes",     subtitle: nil,                prompt: "Respectfully define and sculpt the glute muscles for a toned look",           isFree: false),
+           EnhancementOption(id: "perky",               title: "Perky",               subtitle: nil,                prompt: "Respectfully perk up the buttocks for a youthful, lifted appearance",        isFree: true),
+           EnhancementOption(id: "voluminous",          title: "Voluminous",          subtitle: nil,                prompt: "Enhance volume and roundness for fuller, more pronounced glutes",            isFree: false),
+           EnhancementOption(id: "peach_lift",          title: "Peach Lift",          subtitle: nil,                prompt: "Respectfully lift glutes for a peach‑emoji vibe 🍑",                          isFree: true),
+           EnhancementOption(id: "bubble_booty",        title: "Bubble Booty",        subtitle: nil,                prompt: "Respectfully add bubble‑shaped roundness for a playful look",                isFree: false),
+           EnhancementOption(id: "brazilian_curve",     title: "Brazilian Curve",     subtitle: "Limited‑time free", prompt: "Respectfully enhance lower‑upper glute transition for Brazilian shape",       isFree: true),
+           EnhancementOption(id: "shape_360",           title: "360 Shape",           subtitle: nil,                prompt: "Respectfully smooth and contour hips & glutes for a 360° hourglass",         isFree: false)
+       ]
 
+       // MARK: – Muscle / Arms
+       static let muscle: [EnhancementOption] = [
+           EnhancementOption(id: "tone",                title: "Upper Body",          subtitle: nil,                prompt: "Respectfully increase the muscle shape on neck and upper body",               isFree: true),
+           EnhancementOption(id: "sculpt",              title: "Arms & Forearms",     subtitle: nil,                prompt: "Respectfully enhance the muscle shape on the arms and forearms",            isFree: false),
+           EnhancementOption(id: "bicep_peak",          title: "Bicep Peak",          subtitle: nil,                prompt: "Respectfully accentuate the bicep peak for a more pronounced flex",        isFree: false),
+           EnhancementOption(id: "tricep_tone",         title: "Tricep Tone",         subtitle: nil,                prompt: "Respectfully slim and tone the triceps for sleek definition",              isFree: true),
+           EnhancementOption(id: "vascular_forearms",   title: "Vascular Forearms",   subtitle: "Limited‑time free", prompt: "Respectfully highlight forearm veins and muscle separation",                  isFree: true),
+           EnhancementOption(id: "forearm_definition",  title: "Forearm Definition",  subtitle: nil,                prompt: "Respectfully define the forearm muscles for enhanced detail",              isFree: false),
+           EnhancementOption(id: "arm_strength",        title: "Strength Boost",       subtitle: nil,                prompt: "Respectfully add subtle bulk to arms",                                   isFree: false),
+           EnhancementOption(id: "swimmer_build",       title: "Swimmer Build",       subtitle: nil,                prompt: "Respectfully broaden shoulders and taper waist for swimmer aesthetics",     isFree: false),
+           EnhancementOption(id: "athlete_tone",        title: "Athlete Tone",        subtitle: nil,                prompt: "Respectfully tone arms for an athletic, sporty vibe",                      isFree: true),
+           EnhancementOption(id: "power_flex",          title: "Power Flex",          subtitle: "Limited‑time free", prompt: "Respectfully sharpen muscle definition for a power pose",                     isFree: true)
+       ]
 
-    static let waist: [EnhancementOption] = [
-        EnhancementOption(
-            id: "slim",
-            title: "Slim",
-            subtitle: nil,
-            prompt: "Slim and cinch the waist",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "curve",
-            title: "Curve",
-            subtitle: nil,
-            prompt: "Enhance waist curves for definition",
-            isFree: false
-        )
-    ]
+       // MARK: – Waist
+       static let waist: [EnhancementOption] = [
+           EnhancementOption(id: "slim",                title: "Slim",                subtitle: nil,                prompt: "Slim and cinch the waist",                                               isFree: true),
+           EnhancementOption(id: "curve",               title: "Curve",               subtitle: nil,                prompt: "Enhance waist curves for definition",                                   isFree: false),
+           EnhancementOption(id: "v_shape",             title: "V‑Shape",             subtitle: nil,                prompt: "Respectfully sculpt a tapered V‑shape waist",                              isFree: false),
+           EnhancementOption(id: "corset_cinch",        title: "Corset Cinch",        subtitle: "Limited‑time free", prompt: "Respectfully simulate corset‑style waist cinching for TikTok snatch",          isFree: true)
+       ]
 
-    static let hair: [EnhancementOption] = [
-        EnhancementOption(
-            id: "volume",
-            title: "Volume",
-            subtitle: nil,
-            prompt: "Add natural volume and body to hair",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "smooth",
-            title: "Smooth",
-            subtitle: nil,
-            prompt: "Smooth hair and reduce frizz",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "silver_blonde",
-            title: "Silver Blonde",
-            subtitle: nil,
-            prompt: "Transform hair to a chic silver blonde shade",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "bob_cut",
-            title: "Bob Cut",
-            subtitle: nil,
-            prompt: "Give hair a modern bob cut",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "afro",
-            title: "Afro",
-            subtitle: "Limited-time free",
-            prompt: "Define natural afro texture and volume",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "pixie_cut",
-            title: "Pixie Cut",
-            subtitle: nil,
-            prompt: "Create a stylish pixie cut",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "ombre",
-            title: "Ombre",
-            subtitle: nil,
-            prompt: "Add subtle ombre color blending",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "highlights",
-            title: "Highlights",
-            subtitle: nil,
-            prompt: "Incorporate bright highlights throughout hair",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "balayage",
-            title: "Balayage",
-            subtitle: nil,
-            prompt: "Apply a natural balayage painting technique",
-            isFree: false
-        ),
-        EnhancementOption(
-            id: "loose_curls",
-            title: "Loose Curls",
-            subtitle: nil,
-            prompt: "Add loose, bouncy curls for movement",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "beach_waves",
-            title: "Beach Waves",
-            subtitle: "Limited-time free",
-            prompt: "Create soft, effortless beach waves",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "sleek_straight",
-            title: "Sleek Straight",
-            subtitle: nil,
-            prompt: "Smooth hair into a sleek, straight style",
-            isFree: false
-        )
-    ]
+       // MARK: – Hair
+       static let hair: [EnhancementOption] = [
+           EnhancementOption(id: "volume",              title: "Volume",              subtitle: nil,                prompt: "Add natural volume and body to hair",                                    isFree: true),
+           EnhancementOption(id: "smooth",              title: "Smooth",              subtitle: nil,                prompt: "Smooth hair and reduce frizz",                                          isFree: false),
+           EnhancementOption(id: "silver_blonde",       title: "Silver Blonde",       subtitle: nil,                prompt: "Transform hair to a chic silver blonde shade",                            isFree: true),
+           EnhancementOption(id: "bob_cut",             title: "Bob Cut",             subtitle: nil,                prompt: "Give hair a modern bob cut",                                            isFree: false),
+           EnhancementOption(id: "afro",                title: "Afro",                subtitle: "Limited‑time free", prompt: "Define natural afro texture and volume",                                    isFree: true),
+           EnhancementOption(id: "pixie_cut",           title: "Pixie Cut",           subtitle: nil,                prompt: "Create a stylish pixie cut",                                           isFree: false),
+           EnhancementOption(id: "ombre",               title: "Ombre",               subtitle: nil,                prompt: "Add subtle ombre color blending",                                       isFree: true),
+           EnhancementOption(id: "highlights",          title: "Highlights",          subtitle: nil,                prompt: "Incorporate bright highlights throughout hair",                           isFree: false),
+           EnhancementOption(id: "balayage",            title: "Balayage",            subtitle: nil,                prompt: "Apply a natural balayage painting technique",                             isFree: false),
+           EnhancementOption(id: "loose_curls",         title: "Loose Curls",         subtitle: nil,                prompt: "Add loose, bouncy curls for movement",                                   isFree: true),
+           EnhancementOption(id: "beach_waves",         title: "Beach Waves",         subtitle: "Limited‑time free", prompt: "Create soft, effortless beach waves",                                      isFree: true),
+           EnhancementOption(id: "sleek_straight",      title: "Sleek Straight",      subtitle: nil,                prompt: "Smooth hair into a sleek, straight style",                                 isFree: false),
+           EnhancementOption(id: "butterfly_layers",    title: "Butterfly Layers",    subtitle: nil,                prompt: "Add TikTok trending butterfly layers for airy movement",                   isFree: true),
+           EnhancementOption(id: "curtain_bangs",       title: "Curtain Bangs",       subtitle: nil,                prompt: "Add soft curtain bangs framing the face",                                isFree: false),
+           EnhancementOption(id: "mermaid_waves",       title: "Mermaid Waves",       subtitle: "Limited‑time free", prompt: "Create long, flowing mermaid waves with shine",                              isFree: true),
+           EnhancementOption(id: "copper_glow",         title: "Copper Glow",         subtitle: nil,                prompt: "Transform hair to a warm LA‑sun copper glow",                              isFree: false),
+           EnhancementOption(id: "pastel_pink",         title: "Pastel Pink",         subtitle: nil,                prompt: "Tint hair a playful pastel pink",                                       isFree: false)
+       ]
 
+       // MARK: – Nose
+       static let nose: [EnhancementOption] = [
+           EnhancementOption(id: "refine",              title: "Refine",              subtitle: nil,                prompt: "Refine the nose shape subtly",                                         isFree: true),
+           EnhancementOption(id: "slim",                title: "Slim",                subtitle: nil,                prompt: "Slim down the nose bridge",                                           isFree: false),
+           EnhancementOption(id: "button_tip",          title: "Button Tip",          subtitle: nil,                prompt: "Respectfully soften and round the nose tip for a button effect",          isFree: true),
+           EnhancementOption(id: "soft_contour",        title: "Soft Contour",        subtitle: nil,                prompt: "Respectfully add gentle shadow for a softly contoured nose",             isFree: false)
+       ]
 
-    static let nose: [EnhancementOption] = [
-        EnhancementOption(
-            id: "refine",
-            title: "Refine",
-            subtitle: nil,
-            prompt: "Refine the nose shape subtly",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "slim",
-            title: "Slim",
-            subtitle: nil,
-            prompt: "Slim down the nose bridge",
-            isFree: false
-        )
-    ]
-
-    static let eyes: [EnhancementOption] = [
-        EnhancementOption(
-            id: "brighten",
-            title: "Brighten",
-            subtitle: nil,
-            prompt: "Brighten eyes and reduce shadows",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "enlarge",
-            title: "Enlarge",
-            subtitle: nil,
-            prompt: "Subtly enlarge the eyes",
-            isFree: false
-        )
-    ]
-
+       // MARK: – Eyes
+       static let eyes: [EnhancementOption] = [
+           EnhancementOption(id: "brighten",            title: "Brighten",            subtitle: nil,                prompt: "Brighten eyes and reduce shadows",                                      isFree: true),
+           EnhancementOption(id: "enlarge",             title: "Enlarge",             subtitle: nil,                prompt: "Subtly enlarge the eyes",                                            isFree: false),
+           EnhancementOption(id: "fox_lift",            title: "Fox Lift",            subtitle: nil,                prompt: "Respectfully lift outer corners for a fox‑eye trend",                   isFree: true),
+           EnhancementOption(id: "doll_eyes",           title: "Doll Eyes",           subtitle: "Limited‑time free", prompt: "Respectfully widen and round eyes for a doll‑like effect",                 isFree: true),
+           EnhancementOption(id: "winged_liner",        title: "Winged Liner",        subtitle: nil,                prompt: "Apply a clean winged‑liner illusion for sharp definition",              isFree: false)
+       ]
     static let skin: [EnhancementOption] = [
         EnhancementOption(
             id: "smooth",
@@ -2096,700 +1684,6 @@ struct HairStyleApp: App {
         }
     }
 }
-//
-//  SettingsView.swift
-//  HairStyle
-//
-//  Created by adam on 27/03/2025.
-//
-
-import SwiftUI
-import PhotosUI
-import Vision
-
-
-struct SettingsView: View {
-    @ObservedObject var viewModel: ImageEditingViewModel
-    @Binding var sliderPosition: CGFloat
-    
-    var body: some View {
-        List {
-            Section(header: Text("Sharing Settings")) {
-                Toggle(isOn: $viewModel.isPublicSharing) {
-                    Text(viewModel.isPublicSharing ? "Share Generations Publicly: On" : "Share Generations Publicly: Off")
-                }
-            }
-            
-            Section(header: Text("Before/After Slider")) {
-                Slider(value: $sliderPosition, in: 0...1)
-                Text("Slider Position: \(sliderPosition, specifier: "%.2f")")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-        }
-        .navigationTitle("Settings")
-        .listStyle(InsetGroupedListStyle())
-    }
-}
-import SwiftUI
-
-/// A zoomable & pannable container that shows either
-/// • a comparison slider between an original & edited image
-/// • a single edited image
-/// • or an empty-state prompt when no image is loaded.
-///
-/// **Key fixes (v3):**
-/// • Added a tiny `CGSize` `+` helper so the file *actually* compiles – Xcode
-///   doesn’t ship an overload for adding two `CGSize`s. Nothing else about
-///   the gesture logic changes.
-///
-/// (Icon-layout & animation-suppression tweaks from v2 remain.)
-struct PhotoWithRefreshOverlay: View {
-    // MARK: – Inputs
-    let originalImage: UIImage?
-    let editedImage: UIImage?
-    let depthMapImage: UIImage?
-
-    @Binding var sliderPosition: CGFloat
-    @Binding var showSlider: Bool
-
-    let onReplaceTap: () -> Void
-    let onAddTap: () -> Void
-    let onSaveTap: () -> Void
-
-    // MARK: – Persistent transform state
-    @State private var accumulatedScale: CGFloat = 1.0
-    @State private var accumulatedOffset: CGSize = .zero
-
-    // MARK: – Transient gesture state (cleared every frame)
-    @GestureState private var gestureScale: CGFloat = 1.0
-    @GestureState private var gestureOffset: CGSize = .zero
-
-    // MARK: – Constants
-    @ScaledMetric private var iconSide: CGFloat = 24
-    private let minScale: CGFloat = 0.5
-    private let maxScale: CGFloat = 5
-
-    var body: some View {
-        ZStack {
-            contentView
-                .scaleEffect(currentScale)
-                .offset(currentOffset)
-                .animation(.none, value: currentScale)
-                .animation(.none, value: currentOffset)
-                .gesture(transformGesture)
-                .transaction { $0.disablesAnimations = true }
-
-          /*  if editedImage != nil {
-                actionButtons
-                    .padding([.top, .horizontal], 12)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .zIndex(1)
-            }*/
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: – Computed helpers
-    private var currentScale: CGFloat { accumulatedScale * gestureScale }
-
-    private var currentOffset: CGSize {
-        CGSize(width: accumulatedOffset.width + gestureOffset.width,
-               height: accumulatedOffset.height + gestureOffset.height)
-    }
-
-    // MARK: – Sub-views
-    @ViewBuilder
-    private var contentView: some View {
-        if let orig = originalImage, let edit = editedImage {
-            AspectLimitedComparisonView(
-                originalImage: orig,
-                modifiedImage: edit,
-                depthMapImage: depthMapImage,
-                sliderPosition: $sliderPosition,
-                showSlider: $showSlider
-            )
-            .id(depthMapImage)
-        } else if let edit = editedImage {
-            AspectLimitedSingleImageView(image: edit, showSlider: $showSlider)
-        } else {
-            EmptyStateView(onAddTap: onAddTap)
-        }
-    }
-
-    private var actionButtons: some View {
-        HStack {
-            Button(action: onReplaceTap) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .modifier(ActionIcon(side: iconSide))
-            }
-            Spacer()
-            Button(action: saveTapped) {
-                Image(systemName: "square.and.arrow.down")
-                    .modifier(ActionIcon(side: iconSide))
-            }
-        }
-    }
-
-    private func saveTapped() {
-        if let img = editedImage {
-            UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
-        }
-        onSaveTap()
-    }
-
-    // MARK: – Gestures
-    private var transformGesture: some Gesture {
-        SimultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($gestureOffset) { value, state, _ in
-                    state = value.translation
-                }
-                .onEnded { value in
-                    accumulatedOffset = clamped(offset: accumulatedOffset + value.translation)
-                },
-            MagnificationGesture()
-                .updating($gestureScale) { value, state, _ in
-                    state = value
-                }
-                .onEnded { value in
-                    let newScale = accumulatedScale * value
-                    accumulatedScale = min(max(newScale, minScale), maxScale)
-                }
-        )
-    }
-
-    private func clamped(offset: CGSize) -> CGSize {
-        CGSize(width: max(min(offset.width, 2_000), -2_000),
-               height: max(min(offset.height, 2_000), -2_000))
-    }
-}
-
-// MARK: – `CGSize` arithmetic helper
-private extension CGSize {
-    static func + (lhs: CGSize, rhs: CGSize) -> CGSize {
-        CGSize(width: lhs.width + rhs.width, height: lhs.height + rhs.height)
-    }
-}
-
-// MARK: – Style helpers & stubs
-private struct ActionIcon: ViewModifier {
-    let side: CGFloat
-    func body(content: Content) -> some View {
-        content
-            .font(.system(size: side * 0.45, weight: .medium))
-            .foregroundColor(.white)
-            .frame(width: side, height: side)
-            .background(Color.black.opacity(0.6))
-            .clipShape(Circle())
-    }
-}
-
-struct EmptyStateView: View {
-    let onAddTap: () -> Void
-    var body: some View {
-        Rectangle()
-            .fill(Color.gray.opacity(0.3))
-            .overlay(
-                VStack {
-                    Spacer()
-                    Button(action: onAddTap) {
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.fill.on.rectangle.fill")
-                                .font(.system(size: 40))
-                            Text("Add Image +")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.black)
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .shadow(radius: 10)
-                    }
-                    Spacer()
-                }
-                .frame(height: 600)
-            )
-    }
-}
-//
-//  OutlineTextModifier.swift
-//  HairStyle
-//
-//  Created by adam on 24/03/2025.
-//
-
-import SwiftUI
-import PhotosUI
-import Vision
-
-struct OutlineTextModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        ZStack {
-            content
-                .foregroundColor(.black.opacity(0.3))
-                .offset(x: -1, y: -1)
-            content
-                .foregroundColor(.black.opacity(0.3))
-                .offset(x: 1, y: -1)
-            content
-                .foregroundColor(.black.opacity(0.3))
-                .offset(x: -1, y: 1)
-            content
-                .foregroundColor(.black.opacity(0.3))
-                .offset(x: 1, y: 1)
-            content
-        }
-    }
-}
-
-struct IdentityModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-    }
-}
-//
-//  AspectLimitedSingleImageView.swift
-//  HairStyle
-//
-//  Created by Adam Roszyk on 3/22/25.
-//
-import SwiftUI
-import PhotosUI
-import Vision
-
-struct AspectLimitedSingleImageView: View {
-    let image: UIImage
-    @Binding var showSlider: Bool
-    
-    var body: some View {
-        Image(uiImage: image)
-            .resizable()
-            .scaledToFit()
-            .onTapGesture {
-                withAnimation {
-                    showSlider = false
-                }
-            }
-    }
-}
-import SwiftUI
-import StoreKit
-
-struct BottomMenuView: View {
-    @ObservedObject var viewModel: ImageEditingViewModel
-    @Binding var inputImage: UIImage?
-    @Binding var sliderPosition: CGFloat
-    
-    // drop the `private` here so we can initialize it
-    @State var selectedCategory: String
-    @State private var selectedItemId: UUID?
-    @State private var generationCount: Int = 0
-
-    /// Now put your init _inside_ the struct
-    init(
-      viewModel: ImageEditingViewModel,
-      inputImage: Binding<UIImage?>,
-      sliderPosition: Binding<CGFloat>,
-      initialCategory: String = "Hairstyle"  // default so old calls still compile
-    ) {
-      self.viewModel = viewModel
-      self._inputImage = inputImage
-      self._sliderPosition = sliderPosition
-      self._selectedCategory = State(initialValue: initialCategory)
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            categoriesSection
-                .frame(height: 50)
-                .padding(.horizontal)
-            
-            itemsSection
-                .frame(height: 110)
-        }
-        .background(Color.clear)
-        
-        // Show a premium-limit alert if the user hits the generation limit
-        .alert("Premium Limit", isPresented: $viewModel.showPremiumAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(viewModel.errorMessage)
-        }
-    }
-    
-    // MARK: - Categories Section
-    private var categoriesSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 20) {
-                ForEach(BeautyDataPrompts.categories, id: \.self) { category in
-                    Text(category)
-                        .fontWeight(selectedCategory == category ? .bold : .regular)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
-                        .background(selectedCategory == category ? Color.white.opacity(0.1) : Color.clear)
-                        .foregroundColor(selectedCategory == category ? .white : .primary)
-                        .shadow(color: selectedCategory == category ? Color.black.opacity(0.5) : Color.clear, radius: 0, x: 1, y: 1)
-                        .shadow(color: selectedCategory == category ? Color.black.opacity(0.5) : Color.clear, radius: 0, x: -1, y: 1)
-                        .shadow(color: selectedCategory == category ? Color.black.opacity(0.5) : Color.clear, radius: 0, x: 1, y: -1)
-                        .shadow(color: selectedCategory == category ? Color.black.opacity(0.5) : Color.clear, radius: 0, x: -1, y: -1)
-                        .cornerRadius(8)
-                        .cornerRadius(8)
-                        .onTapGesture {
-                            withAnimation {
-                                selectedCategory = category
-                            }
-                        }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Items Section
-    private var itemsSection: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .center, spacing: 16) {
-                    // Loop through the items for the selected category
-                    ForEach(BeautyDataPrompts.items[selectedCategory] ?? []) { item in
-                        itemButton(for: item)
-                    }
-                }
-                .padding(.horizontal)
-            }
-            .onChange(of: selectedCategory) { _ in
-                scrollToFirst(proxy: proxy)
-            }
-            .onAppear {
-                scrollToFirst(proxy: proxy)
-            }
-        }
-    }
-    
-    // MARK: - Item Button
-    private func itemButton(for item: HairItem) -> some View {
-        VStack {
-            // You can place an Image or systemName icon for the item here
-            ZStack {
-                if let imageName = item.image {
-                    Image(imageName)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 60, height: 60)
-                } else {
-                    Image(systemName: "photo.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 40, height: 40)
-                        .foregroundColor(.gray)
-                }
-                
-                if viewModel.isLoading && selectedItemId == item.id {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .frame(width: 60, height: 60)
-                        .background(Color.black.opacity(0.3))
-                }
-            }
-            
-            Text(item.name)
-                .font(.caption)
-                .lineLimit(1)
-        }
-        .frame(width: 80)
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(selectedItemId == item.id ? Color.white.opacity(0.01) : Color.white)
-        .cornerRadius(8)
-        .onTapGesture {
-            guard !viewModel.isLoading else { return }
-            selectedItemId = item.id
-            viewModel.prompt = item.prompt
-            
-            // Increment generation count
-            generationCount += 0// Disabled for now, will add the payments later.
-            
-            // Check if user reached the limit (3 in this example)
-            if generationCount >= 3 {
-                // Show premium-limit message
-                viewModel.errorMessage = "Premium limit reached. Upgrade to premium for unlimited images."
-                viewModel.showPremiumAlert = true
-                
-                // Optionally request a StoreKit review
-                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                    SKStoreReviewController.requestReview(in: scene)
-                }
-                
-                // Because we've reached the limit, we skip calling editImage()
-                // Instead we display the alert. You can handle logic as you see fit.
-                
-            } else {
-                // If user is still within the limit, proceed with the image edit
-                viewModel.editImage()
-            }
-        }
-        .disabled(viewModel.isLoading)
-        .opacity(viewModel.isLoading && selectedItemId != item.id ? 0.5 : 1.0)
-    }
-    
-    // MARK: - Helper: Scroll to First Item
-    private func scrollToFirst(proxy: ScrollViewProxy) {
-        if let firstId = BeautyDataPrompts.items[selectedCategory]?.first?.id {
-            withAnimation {
-                proxy.scrollTo(firstId, anchor: .leading)
-            }
-        }
-    }
-}
-import SwiftUI
-import Vision
-
-// MARK: - NormalizedContour
-struct NormalizedContour {
-    let normalizedPoints: [CGPoint]
-}
-
-// Because `MeshGradient` is available in iOS 18.0+,
-// we mark this property accordingly.
-@available(iOS 18.0, *)
-private var meshGradientStrokeStyle: MeshGradient {
-    MeshGradient(
-        width: 3,
-        height: 3,
-        points: [
-            [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-            [0.0, 0.5], [0.8, 0.2], [1.0, 0.5],
-            [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-        ],
-        colors: [
-            .black, .black, .black,
-            .blue,  .blue,  .blue,
-            .green, .green, .green
-        ]
-    )
-}
-
-func detectNormalizedContours(in image: UIImage) -> [NormalizedContour]? {
-    guard let cgImage = image.cgImage else { return nil }
-
-    let request = VNDetectContoursRequest()
-    
-    // If you're targeting iOS 15 or higher:
-    if #available(iOS 15.0, *) {
-        // Increase contrastAdjustment to detect more subtle edges
-        request.contrastAdjustment = 0.70  // Try 1.2, 1.5, 2.0, etc.
-        
-        // If the image background is lighter than the foreground
-        request.detectDarkOnLight = false
-        
-        // Limit how large the image is scaled before detection
-        request.maximumImageDimension = 512
-    }
-    
-    
-    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-    do {
-        try handler.perform([request])
-        guard let observation = request.results?.first as? VNContoursObservation else { return nil }
-        
-        var contours: [NormalizedContour] = []
-        
-        for i in 0..<observation.topLevelContourCount {
-            guard let contour = observation.topLevelContours[safe: i] else { continue }
-            // Flip y-coordinates to match SwiftUI's top-left origin
-            let points = contour.normalizedPoints.map {
-                CGPoint(x: CGFloat($0.x), y: CGFloat(1 - $0.y))
-            }
-            contours.append(NormalizedContour(normalizedPoints: points))
-        }
-        
-        return contours
-    } catch {
-        print("Error detecting contours: \(error)")
-        return nil
-    }
-}
-
-struct ContoursOverlay: View {
-    let contours: [NormalizedContour]
-    let dashPhase: CGFloat
-    
-    var body: some View {
-        if #available(iOS 18.0, *) {
-            // iOS 17+ uses MeshGradient as the stroke fill
-            ContoursShape(contours: contours)
-                .stroke(
-                   
-                    MeshGradient(
-                        width: 3,
-                        height: 3,
-                        points: [
-                            // Same 3x3 grid of control points
-                            [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                            [0.0, 0.5], [0.8, 0.2], [1.0, 0.5],
-                            [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                        ],
-                        colors: [
-                            // Top row
-                            Color(red: 1.0, green: 0.28, blue: 0.45), // pink
-                            Color(red: 1.0, green: 0.28, blue: 0.45),
-                            Color(red: 1.0, green: 0.55, blue: 0.20), // orange
-
-                            // Middle row
-                            Color(red: 1.0, green: 0.28, blue: 0.45),
-                            Color(red: 1.0, green: 0.55, blue: 0.20),
-                            Color(red: 1.0, green: 0.55, blue: 0.20),
-
-                            // Bottom row
-                            Color(red: 1.0, green: 0.28, blue: 0.45),
-                            Color(red: 1.0, green: 0.55, blue: 0.20),
-                            Color(red: 1.0, green: 0.72, blue: 0.10)  // yellowish
-                        ]
-                    ),
-                    style: StrokeStyle(
-                        lineWidth: 4,
-                        lineCap: .round,
-                        dash: [20, 40],
-                        dashPhase: dashPhase
-                    )
-                )
-        } else {
-            // Fallback for iOS < 17
-            ContoursShape(contours: contours)
-                .stroke(
-                    Color.red,
-                    style: StrokeStyle(
-                        lineWidth: 3,
-                        lineCap: .round,
-                        dash: [10, 20],
-                        dashPhase: dashPhase
-                    )
-                )
-        }
-    }
-}
-
-
-// MARK: - ContoursShape
-struct ContoursShape: Shape {
-    let contours: [NormalizedContour]
-    
-    func path(in rect: CGRect) -> Path {
-        var combined = Path()
-        for contour in contours {
-            guard let first = contour.normalizedPoints.first else { continue }
-            combined.move(to: CGPoint(x: first.x * rect.width, y: first.y * rect.height))
-            
-            for point in contour.normalizedPoints.dropFirst() {
-                combined.addLine(to: CGPoint(x: point.x * rect.width, y: point.y * rect.height))
-            }
-            combined.closeSubpath()
-        }
-        return combined
-    }
-}
-
-// MARK: - Safe Collection Subscript
-extension Collection {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
-
-// MARK: - resizeImage(image:targetSize:)
-func resizeImage(image: UIImage, targetSize: CGSize) -> UIImage {
-    let renderer = UIGraphicsImageRenderer(size: targetSize)
-    return renderer.image { _ in
-        image.draw(in: CGRect(origin: .zero, size: targetSize))
-    }
-}
-
-
-// MARK: - AspectLimitedComparisonView
-struct AspectLimitedComparisonView: View {
-    let originalImage: UIImage?
-    let modifiedImage: UIImage?
-    let depthMapImage: UIImage?
-    
-    @Binding var sliderPosition: CGFloat
-    @Binding var showSlider: Bool
-    
-    @State private var normalizedContours: [NormalizedContour] = []
-    @State private var dashPhase: CGFloat = 0.0
-    
-    // Use MeshGradient stroke if iOS >= 18, else fallback to a solid color.
-  
-    let CustomStrokeFill: any ShapeStyle = {
-        if #available(iOS 18.0, *) {
-            // Return the MeshGradient (which *is* a ShapeStyle in iOS 17)
-            return meshGradientStrokeStyle
-        } else {
-            // Fallback for older iOS
-            return Color.red
-        }
-    }()
-    var body: some View {
-        GeometryReader { geometry in
-            let displaySize = geometry.size
-            
-            ZStack {
-                // 1) Original image in the background
-                Image(uiImage: originalImage!)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: displaySize.width, height: displaySize.height)
-                
-                if modifiedImage == originalImage {
-                    // If 'modifiedImage' is the same as 'originalImage', show the depth overlay + contours
-                    if let depth = depthMapImage {
-                        // Resize depth to the same displayed size
-                        let resizedDepth = resizeImage(image: depth, targetSize: displaySize)
-                        
-                        
-                        Image(uiImage: resizedDepth)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: displaySize.width, height: displaySize.height)
-                            .opacity(0.00)
-                            .overlay(
-                                ContoursOverlay(
-                                    contours: normalizedContours,
-                                    dashPhase: dashPhase
-                                )
-                            )
-                            .onAppear {
-                                // Detect contours in the resized depth image
-                                if let contours = detectNormalizedContours(in: resizedDepth) {
-                                    self.normalizedContours = contours
-                                }
-                                // Animate dash phase
-                                withAnimation(
-                                    Animation.linear(duration: 999).repeatForever(autoreverses: false)
-                                ) {
-                                    self.dashPhase -= 10000
-                                }
-                            }
-                    }
-                } else {
-                    // Otherwise, just show the modified image
-                    if let modified = modifiedImage {
-                        Image(uiImage: modified)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: displaySize.width, height: displaySize.height)
-                    }
-                }
-            }
-            .onTapGesture {
-                withAnimation {
-                    showSlider.toggle()
-                }
-            }
-        }
-        // Force the overall aspect ratio to match the original
-        .aspectRatio(originalImage!.size, contentMode: .fit)
-    }
-}
 import SwiftUI
 import Photos
 import StoreKit
@@ -2969,107 +1863,6 @@ struct ReviewPromptPageView: View {
             }
             .padding(.horizontal)
         }
-    }
-}
-import SwiftUI
-
-struct ContentView: View {
-    @StateObject private var viewModel = ImageEditingViewModel()
-    @State private var inputImage: UIImage?
-    @State private var showingImagePicker = false
-    @State private var sliderPosition: CGFloat = 0.5
-    @State private var showSlider: Bool = false
-    @State private var showSaveSuccessAlert = false
-
-    var body: some View {
-        ZStack {
-            // MARK: Background covers full screen
-            backgroundView
-                .ignoresSafeArea()
-
-            // MARK: Photo (maintain aspect ratio, no distortion)
-            PhotoWithRefreshOverlay(
-                originalImage: inputImage,
-                editedImage: viewModel.editedImage,
-                depthMapImage: viewModel.depthMapImage,
-                sliderPosition: $sliderPosition,
-                showSlider: $showSlider,
-                onReplaceTap: pickImage,
-                onAddTap: pickImage,
-                onSaveTap: saveImage
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            // MARK: Bottom Controls Panel
-            VStack {
-                Spacer()
-                BottomMenuView(
-                    viewModel: viewModel,
-                    inputImage: $inputImage,
-                    sliderPosition: $sliderPosition
-                )
-                .padding()
-                .background(.ultraThinMaterial)
-                .cornerRadius(16)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            }
-        }
-        // allow background to extend under status bar
-        .edgesIgnoringSafeArea(.top)
-        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
-            ImagePicker(image: $inputImage)
-        }
-        .alert("Saved", isPresented: $showSaveSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Image saved successfully to your Photos.")
-        }
-        .onAppear {
-            Task {
-                do { try await viewModel.loadModel() }
-                catch { viewModel.errorMessage = "Failed to load model: \(error.localizedDescription)" }
-            }
-        }
-    }
-}
-
-private extension ContentView {
-    var backgroundView: some View {
-        Group {
-            if let image = inputImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: 120)
-                    .overlay(Color.black.opacity(0.4))
-            } else {
-                Color.black.opacity(0.6)
-            }
-        }
-    }
-
-    func pickImage() {
-        showingImagePicker = true
-    }
-
-    func loadImage() {
-        guard let selected = inputImage else { return }
-        viewModel.editedImage = selected
-        viewModel.errorMessage = ""
-        Task { await viewModel.generateDepthMap(for: selected) }
-    }
-
-    func saveImage() {
-        guard let imageToSave = viewModel.editedImage else { return }
-        UIImageWriteToSavedPhotosAlbum(imageToSave, nil, nil, nil)
-        showSaveSuccessAlert = true
-    }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
     }
 }
 //

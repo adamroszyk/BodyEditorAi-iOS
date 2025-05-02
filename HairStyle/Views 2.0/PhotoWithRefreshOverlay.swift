@@ -32,10 +32,12 @@ import SwiftUI
     }
 }
 
-// MARK: – Empty state
-private struct EmptyStateView: View {
+
+struct EmptyStateView: View {
     let onAddTap: () -> Void
     let isGenerating: Bool
+
+    @State private var shineAdd = false
 
     var body: some View {
         VStack {
@@ -47,16 +49,40 @@ private struct EmptyStateView: View {
                     .foregroundColor(.white)
                     .padding()
             } else {
-                Button(action: onAddTap) {
+                Button(action: {
+                    shineAdd = false
+                    onAddTap()
+                }) {
                     VStack(spacing: 12) {
-                        Image(systemName: "photo.fill.on.rectangle.fill").font(.system(size: 40))
-                        Text("Add Image +").font(.headline)
+                        Image(systemName: "photo.fill.on.rectangle.fill")
+                            .font(.system(size: 40))
+                        Text("Add Image +")
+                            .font(.headline)
                     }
                     .foregroundColor(.black)
                     .padding()
                     .background(Color.white)
                     .cornerRadius(12)
                     .shadow(radius: 10)
+                    // shimmer overlay
+                    .overlay(
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.white.opacity(0.1), Color.white.opacity(0.4), Color.white.opacity(0.1)]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .rotationEffect(.degrees(30))
+                            .offset(x: shineAdd ? 200 : -200)
+                            .mask(RoundedRectangle(cornerRadius: 12))
+                    )
+                }
+                .onAppear {
+                    withAnimation(Animation.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                        shineAdd = true
+                    }
                 }
             }
             Spacer()

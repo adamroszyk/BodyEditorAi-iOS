@@ -34,30 +34,16 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Models/HairDataPromptsBackup.txt,
-				Views/MainImageArea.swift.txt,
 			);
 			target = 7EEDD0202D8ADA110080D4FF /* HairStyle */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		7CC8217D2DBAC90100B06962 /* Exceptions for "HairStyle" folder in "Compile Sources" phase from "HairStyle" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = 7EEDD01D2D8ADA110080D4FF /* Sources */;
-			membershipExceptions = (
-				Models/HairDataPromptsBackup.txt,
-				Views/MainImageArea.swift.txt,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7EEDD0232D8ADA110080D4FF /* HairStyle */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				7C3947212D934896005AE76A /* Exceptions for "HairStyle" folder in "HairStyle" target */,
-				7CC8217D2DBAC90100B06962 /* Exceptions for "HairStyle" folder in "Compile Sources" phase from "HairStyle" target */,
 			);
 			path = HairStyle;
 			sourceTree = "<group>";
@@ -305,7 +291,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"HairStyle/Preview Content\"";
 				DEVELOPMENT_TEAM = 3LQM9KSXZ2;
 				ENABLE_PREVIEWS = YES;
@@ -323,7 +309,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = activeoutcome.PicUp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -338,7 +324,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"HairStyle/Preview Content\"";
 				DEVELOPMENT_TEAM = 3LQM9KSXZ2;
 				ENABLE_PREVIEWS = YES;
@@ -356,7 +342,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = activeoutcome.PicUp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
