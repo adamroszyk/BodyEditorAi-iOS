@@ -18,7 +18,7 @@ class ImageEditingViewModel: ObservableObject {
     @Published var depthMapImage: UIImage? = nil  // Holds the generated depth map image
     
     // Depth model property
-    var model: DepthAnythingV2SmallF16?
+    //var model: DepthAnythingV2SmallF16?
     
     // Proxy endpoint for your Gemini API key.
     let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini")!
@@ -39,10 +39,10 @@ class ImageEditingViewModel: ObservableObject {
     func loadModel() async throws {
         let config = MLModelConfiguration()
         config.computeUnits = .cpuOnly
-        model = try DepthAnythingV2SmallF16(configuration: config)
+       // model = try DepthAnythingV2SmallF16(configuration: config)
     }
     
-    
+    /*
     func generateDepthMap(for image: UIImage) async {
         // Ensure the model is loaded.
         guard let depthModel = model else {
@@ -81,7 +81,7 @@ class ImageEditingViewModel: ObservableObject {
         }
     }
 
-    
+    */
     
     func editImage() {
         guard let image = editedImage,

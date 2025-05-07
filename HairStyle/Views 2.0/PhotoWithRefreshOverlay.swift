@@ -100,7 +100,11 @@ struct EmptyStateView: View {
             vm.prompt = prompt
             await MainActor.run { vm.editImage() }
             while await MainActor.run(body: { vm.isLoading }) {
-                try? await Task.sleep(for: .milliseconds(100))
+                if #available(iOS 16.0, *) {
+                    try? await Task.sleep(for: .milliseconds(100))
+                } else {
+                    // Fallback on earlier versions
+                }
             }
             return await MainActor.run(body: { vm.editedImage })
         } catch {

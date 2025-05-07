@@ -196,7 +196,7 @@ struct GenView: View {
     }
 }
 
-private struct ThumbnailsStrip: View {
+ struct ThumbnailsStrip: View {
     let thumbs: [ThumbItem]
     let onSelect: (Int) -> Void
     let onRetry: () -> Void
