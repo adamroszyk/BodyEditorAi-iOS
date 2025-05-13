@@ -74,14 +74,26 @@ enum BodyEnhancementPrompts {
            EnhancementOption(id: "athlete_tone",        title: "Athlete Tone",        subtitle: nil,                prompt: "Respectfully tone arms for an athletic, sporty vibe",                      isFree: true),
            EnhancementOption(id: "power_flex",          title: "Power Flex",          subtitle: "Limited‑time free", prompt: "Respectfully sharpen muscle definition for a power pose",                     isFree: true)
        ]
+    
+    // MARK: – Waist
+    static let waist: [EnhancementOption] = [
+        // Existing
+        EnhancementOption(id: "slim",             title: "Slim",             subtitle: nil,                prompt: "Slim and cinch the waist",                                                     isFree: true),
+        EnhancementOption(id: "curve",            title: "Curve",            subtitle: nil,                prompt: "Enhance waist curves for definition",                                         isFree: false),
+        EnhancementOption(id: "v_shape",          title: "V-Shape",          subtitle: nil,                prompt: "Respectfully sculpt a tapered V-shape waist",                                  isFree: false),
+        EnhancementOption(id: "corset_cinch",     title: "Corset Cinch",     subtitle: "Limited-time free", prompt: "Respectfully simulate corset-style waist cinching for TikTok snatch",           isFree: true),
 
-       // MARK: – Waist
-       static let waist: [EnhancementOption] = [
-           EnhancementOption(id: "slim",                title: "Slim",                subtitle: nil,                prompt: "Slim and cinch the waist",                                               isFree: true),
-           EnhancementOption(id: "curve",               title: "Curve",               subtitle: nil,                prompt: "Enhance waist curves for definition",                                   isFree: false),
-           EnhancementOption(id: "v_shape",             title: "V‑Shape",             subtitle: nil,                prompt: "Respectfully sculpt a tapered V‑shape waist",                              isFree: false),
-           EnhancementOption(id: "corset_cinch",        title: "Corset Cinch",        subtitle: "Limited‑time free", prompt: "Respectfully simulate corset‑style waist cinching for TikTok snatch",          isFree: true)
-       ]
+        // New additions
+        EnhancementOption(id: "hourglass",        title: "Hourglass",        subtitle: nil,                prompt: "Respectfully sculpt an hourglass silhouette",                                  isFree: false),
+        EnhancementOption(id: "micro_cinch",      title: "Micro Cinch",      subtitle: "Limited-time free", prompt: "Respectfully simulate an ultra-cinched micro waist",                           isFree: true),
+        EnhancementOption(id: "athletic_tone",    title: "Athletic Tone",    subtitle: nil,                prompt: "Define a toned, athletic waistline",                                           isFree: false),
+        EnhancementOption(id: "balanced_curve",   title: "Balanced Curve",   subtitle: nil,                prompt: "Add gentle definition for a balanced waist curve",                             isFree: true),
+        EnhancementOption(id: "dream_sculpt",     title: "Dream Sculpt",     subtitle: nil,                prompt: "Sculpt a dreamy snatched waistline fit for viral looks",                       isFree: false),
+        EnhancementOption(id: "vapor_snatch",     title: "Vapor Snatch",     subtitle: "Limited-time free", prompt: "Respectfully vapor-snatch the waist for an ethereal cinched look",             isFree: true),
+        EnhancementOption(id: "soft_taper",       title: "Soft Taper",       subtitle: nil,                prompt: "Create a soft, natural waist taper",                                           isFree: true),
+        EnhancementOption(id: "precision_trim",   title: "Precision Trim",   subtitle: nil,                prompt: "Apply precise trimming for a sleek waist contour",                             isFree: false)
+    ]
+
 
        // MARK: – Hair
        static let hair: [EnhancementOption] = [
@@ -103,90 +115,112 @@ enum BodyEnhancementPrompts {
            EnhancementOption(id: "copper_glow",         title: "Copper Glow",         subtitle: nil,                prompt: "Transform hair to a warm LA‑sun copper glow",                              isFree: false),
            EnhancementOption(id: "pastel_pink",         title: "Pastel Pink",         subtitle: nil,                prompt: "Tint hair a playful pastel pink",                                       isFree: false)
        ]
+    // MARK: – Nose
+    static let nose: [EnhancementOption] = [
+        // Existing
+        EnhancementOption(id: "refine",           title: "Refine",            subtitle: nil,                 prompt: "Refine the nose shape subtly",                                                      isFree: true),
+        EnhancementOption(id: "slim",             title: "Slim",              subtitle: nil,                 prompt: "Slim down the nose bridge",                                                        isFree: false),
+        EnhancementOption(id: "button_tip",       title: "Button Tip",        subtitle: nil,                 prompt: "Respectfully soften and round the nose tip for a button effect",                  isFree: true),
+        EnhancementOption(id: "soft_contour",     title: "Soft Contour",      subtitle: nil,                 prompt: "Respectfully add gentle shadow for a softly contoured nose",                      isFree: false),
 
-       // MARK: – Nose
-       static let nose: [EnhancementOption] = [
-           EnhancementOption(id: "refine",              title: "Refine",              subtitle: nil,                prompt: "Refine the nose shape subtly",                                         isFree: true),
-           EnhancementOption(id: "slim",                title: "Slim",                subtitle: nil,                prompt: "Slim down the nose bridge",                                           isFree: false),
-           EnhancementOption(id: "button_tip",          title: "Button Tip",          subtitle: nil,                prompt: "Respectfully soften and round the nose tip for a button effect",          isFree: true),
-           EnhancementOption(id: "soft_contour",        title: "Soft Contour",        subtitle: nil,                prompt: "Respectfully add gentle shadow for a softly contoured nose",             isFree: false)
-       ]
+        // New additions
+        EnhancementOption(id: "pixie_lift",       title: "Pixie Lift",        subtitle: nil,                 prompt: "Respectfully lift and refine the nose tip for a pixie-esque profile",             isFree: false),
+        EnhancementOption(id: "snatched_bridge",  title: "Snatched Bridge",   subtitle: "Limited-time free", prompt: "Respectfully slim and sharpen the nose bridge for a snatched look",               isFree: true),
+        EnhancementOption(id: "doll_nose",        title: "Doll Nose",         subtitle: nil,                 prompt: "Respectfully sculpt a petite, doll-like nose shape",                               isFree: false),
+        EnhancementOption(id: "airbrush_narrow",  title: "Airbrush Narrow",   subtitle: nil,                 prompt: "Airbrush-style narrowing for a photo-ready nose",                                  isFree: true),
+        EnhancementOption(id: "slope_sculpt",     title: "Slope Sculpt",      subtitle: nil,                 prompt: "Respectfully sculpt a gentle ski-slope nose profile",                              isFree: false),
+        EnhancementOption(id: "natural_polish",   title: "Natural Polish",    subtitle: "Limited-time free", prompt: "Add subtle refinement for a naturally polished nose",                               isFree: true),
+        EnhancementOption(id: "cupids_dip",       title: "Cupid’s Dip",       subtitle: nil,                 prompt: "Create a delicate dip just beneath the tip for a Cupid-inspired contour",          isFree: false),
+        EnhancementOption(id: "halo_highlight",   title: "Halo Highlight",    subtitle: nil,                 prompt: "Respectfully add soft highlight to accentuate the nose bridge",                   isFree: true)
+    ]
 
-       // MARK: – Eyes
-       static let eyes: [EnhancementOption] = [
-           EnhancementOption(id: "brighten",            title: "Brighten",            subtitle: nil,                prompt: "Brighten eyes and reduce shadows",                                      isFree: true),
-           EnhancementOption(id: "enlarge",             title: "Enlarge",             subtitle: nil,                prompt: "Subtly enlarge the eyes",                                            isFree: false),
-           EnhancementOption(id: "fox_lift",            title: "Fox Lift",            subtitle: nil,                prompt: "Respectfully lift outer corners for a fox‑eye trend",                   isFree: true),
-           EnhancementOption(id: "doll_eyes",           title: "Doll Eyes",           subtitle: "Limited‑time free", prompt: "Respectfully widen and round eyes for a doll‑like effect",                 isFree: true),
-           EnhancementOption(id: "winged_liner",        title: "Winged Liner",        subtitle: nil,                prompt: "Apply a clean winged‑liner illusion for sharp definition",              isFree: false)
-       ]
+
+    // MARK: – Eyes
+    static let eyes: [EnhancementOption] = [
+        // Existing
+        EnhancementOption(id: "brighten",         title: "Brighten",          subtitle: nil,                 prompt: "Brighten eyes and reduce shadows",                                                  isFree: true),
+        EnhancementOption(id: "enlarge",          title: "Enlarge",           subtitle: nil,                 prompt: "Subtly enlarge the eyes",                                                          isFree: false),
+        EnhancementOption(id: "fox_lift",         title: "Fox Lift",          subtitle: nil,                 prompt: "Respectfully lift outer corners for a fox-eye trend",                               isFree: true),
+        EnhancementOption(id: "doll_eyes",        title: "Doll Eyes",         subtitle: "Limited-time free", prompt: "Respectfully widen and round eyes for a doll-like effect",                           isFree: true),
+        EnhancementOption(id: "winged_liner",     title: "Winged Liner",      subtitle: nil,                 prompt: "Apply a clean winged-liner illusion for sharp definition",                          isFree: false),
+
+        // New additions
+        EnhancementOption(id: "siren_lift",       title: "Siren Lift",        subtitle: nil,                 prompt: "Respectfully raise outer corners for a sultry siren-eye look",                     isFree: false),
+        EnhancementOption(id: "soft_sparkle",     title: "Soft Sparkle",      subtitle: nil,                 prompt: "Gently add subtle shimmer for softly sparkling eyes",                               isFree: true),
+        EnhancementOption(id: "mega_pop",         title: "Mega Pop",          subtitle: "Limited-time free", prompt: "Intensify iris clarity for ultra-pop TikTok eyes",                                   isFree: true),
+        EnhancementOption(id: "pastel_twinkle",   title: "Pastel Twinkle",    subtitle: nil,                 prompt: "Tint eyes with a pastel twinkle for dreamy vibes",                                   isFree: false),
+        EnhancementOption(id: "graphic_flick",    title: "Graphic Flick",     subtitle: nil,                 prompt: "Apply a bold graphic liner flick for statement eyes",                               isFree: false),
+        EnhancementOption(id: "dreamy_haze",      title: "Dreamy Haze",       subtitle: nil,                 prompt: "Add a soft-focus haze for ethereal eyes",                                           isFree: true),
+        EnhancementOption(id: "icicle_bright",    title: "Icicle Bright",     subtitle: "Limited-time free", prompt: "Cool-tone brighten for an icy, refreshed gaze",                                      isFree: true),
+        EnhancementOption(id: "subtle_smoke",     title: "Subtle Smoke",      subtitle: nil,                 prompt: "Respectfully add a gentle smoky contour for depth",                                 isFree: false)
+    ]
+
+    // MARK: – Skin
     static let skin: [EnhancementOption] = [
-        EnhancementOption(
-            id: "smooth",
-            title: "Smooth",
-            subtitle: nil,
-            prompt: "Smooth skin texture and even tone",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "glow",
-            title: "Glow",
-            subtitle: nil,
-            prompt: "Add a healthy, radiant glow",
-            isFree: false
-        )
+        // Existing
+        EnhancementOption(id: "smooth",        title: "Smooth",        subtitle: nil,                 prompt: "Smooth skin texture and even tone",                             isFree: true),
+        EnhancementOption(id: "glow",          title: "Glow",          subtitle: nil,                 prompt: "Add a healthy, radiant glow",                                   isFree: false),
+
+        // New additions
+        EnhancementOption(id: "airbrush",      title: "Airbrush",      subtitle: nil,                 prompt: "Apply studio-grade airbrush smoothing and even tones",           isFree: false),
+        EnhancementOption(id: "glass_skin",    title: "Glass Skin",    subtitle: "Limited-time free", prompt: "Respectfully create a dewy glass-skin finish",                    isFree: true),
+        EnhancementOption(id: "peachy_blush",  title: "Peachy Blush",  subtitle: nil,                 prompt: "Add a soft peachy flush for a healthy TikTok blush look",        isFree: true),
+        EnhancementOption(id: "bronze_tan",    title: "Bronze Tan",    subtitle: nil,                 prompt: "Apply a subtle sun-kissed bronze tan",                           isFree: false),
+        EnhancementOption(id: "freckle_kiss",  title: "Freckle Kiss",  subtitle: "Limited-time free", prompt: "Sprinkle natural-looking sun freckles for playful vibes",        isFree: true),
+        EnhancementOption(id: "clarity_boost", title: "Clarity Boost", subtitle: nil,                 prompt: "Reduce blemishes and enhance skin clarity",                      isFree: false),
+        EnhancementOption(id: "matte_filter",  title: "Matte Filter",  subtitle: nil,                 prompt: "Respectfully mattify skin to reduce shine",                      isFree: true),
+        EnhancementOption(id: "pearl_highlight",title: "Pearl Highlight",subtitle: nil,               prompt: "Apply soft pearl highlights for luminous skin accents",          isFree: false)
     ]
 
+    // MARK: – Face
     static let face: [EnhancementOption] = [
-        EnhancementOption(
-            id: "contour",
-            title: "Contour",
-            subtitle: nil,
-            prompt: "Add subtle contour to face",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "smooth",
-            title: "Smooth",
-            subtitle: nil,
-            prompt: "Smooth overall facial features",
-            isFree: false
-        )
+        // Existing
+        EnhancementOption(id: "contour",        title: "Contour",        subtitle: nil,                 prompt: "Add subtle contour to face",                                   isFree: true),
+        EnhancementOption(id: "smooth",         title: "Smooth",         subtitle: nil,                 prompt: "Smooth overall facial features",                               isFree: false),
+
+        // New additions
+        EnhancementOption(id: "jawline_define", title: "Jawline Define", subtitle: nil,                 prompt: "Sharpen jawline for a defined look",                           isFree: false),
+        EnhancementOption(id: "cheek_lift",     title: "Cheek Lift",     subtitle: nil,                 prompt: "Respectfully lift and sculpt cheekbones",                      isFree: true),
+        EnhancementOption(id: "v_face",         title: "V-Face",         subtitle: "Limited-time free", prompt: "Respectfully sculpt a sleek V-shaped face",                    isFree: true),
+        EnhancementOption(id: "baby_soft",      title: "Baby Soft",      subtitle: nil,                 prompt: "Subtly soften features for a baby-face effect",                isFree: true),
+        EnhancementOption(id: "siren_sculpt",   title: "Siren Sculpt",   subtitle: nil,                 prompt: "Respectfully sculpt striking features for a siren look",       isFree: false),
+        EnhancementOption(id: "golden_ratio",   title: "Golden Ratio",   subtitle: nil,                 prompt: "Refine facial proportions toward the golden ratio",            isFree: false),
+        EnhancementOption(id: "soft_highlight", title: "Soft Highlight", subtitle: "Limited-time free", prompt: "Add gentle highlighted glow to lift features",                 isFree: true),
+        EnhancementOption(id: "chin_tuck",      title: "Chin Tuck",      subtitle: nil,                 prompt: "Subtly tuck chin for a refined profile",                       isFree: false)
     ]
 
+    // MARK: – Lips
     static let lips: [EnhancementOption] = [
-        EnhancementOption(
-            id: "full",
-            title: "Full",
-            subtitle: nil,
-            prompt: "Enhance lip fullness",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "color",
-            title: "Color",
-            subtitle: nil,
-            prompt: "Add natural lip color",
-            isFree: false
-        )
+        // Existing
+        EnhancementOption(id: "full",           title: "Full",            subtitle: nil,                 prompt: "Enhance lip fullness",                                                         isFree: true),
+        EnhancementOption(id: "color",          title: "Color",           subtitle: nil,                 prompt: "Add natural lip color",                                                        isFree: false),
+
+        // New additions
+        EnhancementOption(id: "gloss_sheen",    title: "Gloss Sheen",      subtitle: "Limited-time free", prompt: "Add a high-shine gloss sheen for viral glow",                                    isFree: true),
+        EnhancementOption(id: "soft_ombre",     title: "Soft Ombré",       subtitle: nil,                 prompt: "Apply a subtle ombré gradient for fuller-looking lips",                          isFree: false),
+        EnhancementOption(id: "cupid_bow",      title: "Cupid’s Bow",      subtitle: nil,                 prompt: "Enhance Cupid’s bow definition for a crisp lip shape",                           isFree: false),
+        EnhancementOption(id: "velvet_matte",   title: "Velvet Matte",     subtitle: nil,                 prompt: "Give lips a plush velvet-matte finish",                                         isFree: false),
+        EnhancementOption(id: "plump_pout",     title: "Plump Pout",       subtitle: "Limited-time free", prompt: "Respectfully plump lips for a TikTok-ready pout",                                isFree: true),
+        EnhancementOption(id: "blushed_tint",   title: "Blushed Tint",     subtitle: nil,                 prompt: "Add a soft blushed tint for a natural flush",                                   isFree: true),
+        EnhancementOption(id: "frosted_shine",  title: "Frosted Shine",    subtitle: nil,                 prompt: "Apply shimmering frosted shine for nostalgic Y2K vibes",                        isFree: false)
+    ]
+    // MARK: – Legs
+    static let leg: [EnhancementOption] = [
+        // Existing
+        EnhancementOption(id: "slim",              title: "Slim",               subtitle: nil,                 prompt: "Slim and lengthen legs",                                                          isFree: true),
+        EnhancementOption(id: "tone",              title: "Tone",               subtitle: nil,                 prompt: "Tone leg muscles for definition",                                                isFree: false),
+
+        // New additions
+        EnhancementOption(id: "barbie_length",     title: "Barbie Length",      subtitle: "Limited-time free", prompt: "Lengthen and refine legs for Barbiecore proportions",                              isFree: true),
+        EnhancementOption(id: "model_stretch",     title: "Model Stretch",      subtitle: nil,                 prompt: "Respectfully elongate legs for a runway-model stretch",                          isFree: false),
+        EnhancementOption(id: "athletic_sculpt",   title: "Athletic Sculpt",    subtitle: nil,                 prompt: "Enhance muscle definition for a sporty leg sculpt",                               isFree: false),
+        EnhancementOption(id: "pilates_tone",      title: "Pilates Tone",       subtitle: nil,                 prompt: "Add gentle Pilates-inspired toning",                                             isFree: true),
+        EnhancementOption(id: "sun_kissed_glow",   title: "Sun-Kissed Glow",    subtitle: nil,                 prompt: "Apply a subtle sun-bronzed glow to legs",                                        isFree: false),
+        EnhancementOption(id: "glass_shine",       title: "Glass Shine",        subtitle: "Limited-time free", prompt: "Add glossy glass-skin shine for viral leg sheen",                                 isFree: true),
+        EnhancementOption(id: "dreamy_slim",       title: "Dreamy Slim",        subtitle: nil,                 prompt: "Soft-focus slim effect for dreamy long legs",                                    isFree: false),
+        EnhancementOption(id: "v_line_define",     title: "V-Line Define",      subtitle: nil,                 prompt: "Sculpt inner-thigh V-line for crisp definition",                                 isFree: false)
     ]
 
-    static let leg: [EnhancementOption] = [
-        EnhancementOption(
-            id: "slim",
-            title: "Slim",
-            subtitle: nil,
-            prompt: "Slim and lengthen legs",
-            isFree: true
-        ),
-        EnhancementOption(
-            id: "tone",
-            title: "Tone",
-            subtitle: nil,
-            prompt: "Tone leg muscles for definition",
-            isFree: false
-        )
-    ]
     
     static let jewellery: [EnhancementOption] = [
         EnhancementOption(

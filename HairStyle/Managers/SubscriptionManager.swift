@@ -2,107 +2,87 @@
 //  SubscriptionManager.swift
 //  HairStyle
 //
-//  Created by adam on 25/03/2025.
-//
-
 
 import StoreKit
 import SwiftUI
 
 @MainActor
-class SubscriptionManager: ObservableObject {
-    /// The subscription products fetched from StoreKit configuration
-    @Published var subscriptions: [Product] = []
+final class SubscriptionManager: ObservableObject {
     
-    /// Keep track of purchased product identifiers
-    @Published var purchasedIdentifiers = Set<String>()
+    // MARK:  Published
+    @Published var subscriptions: [Product]          = []
+    @Published var purchasedIdentifiers: Set<String> = []
     
-    /// Task to listen for any subscription updates
-    private var updates: Task<Void, Never>?
+    /// Optional thumbnails the paywall can show on first launch.
+    /// `ThumbItem` is already declared in **GenView.swift**, so we just
+    /// reference it here—no second definition!
+    let previewThumbs: [ThumbItem] = []          // ← keep empty or fill later
     
-    /// Define your product IDs exactly as they appear in your StoreKit config
-    private let productIDs = [
-        "weeksub"
-    ]
+    // MARK:  Private
+    private let productIDs = ["weeksub"]
+    private var updateTask: Task<Void, Never>?
     
+    // MARK:  Init
     init() {
-        // Start listening for transaction updates
-        updates = listenForTransactions()
-        
-        // Immediately fetch products and update purchased info
+        updateTask = listenForTransactions()
         Task {
             await requestProducts()
-            await updatePurchasedIdentifiers()
+            await refreshEntitlements()
         }
     }
+}
+
+// MARK: – StoreKit helpers
+extension SubscriptionManager {
     
-    /// Request products from StoreKit
     func requestProducts() async {
         do {
-            let storeProducts = try await Product.products(for: productIDs)
-            subscriptions = storeProducts
+            subscriptions = try await Product.products(for: productIDs)
         } catch {
-            print("Failed to request products: \(error)")
+            print("❌ StoreKit product request failed:", error)
         }
     }
     
-    /// Listen for any transaction updates (e.g., renewals, cancellations)
     private func listenForTransactions() -> Task<Void, Never> {
         Task.detached { [weak self] in
-            guard let self = self else { return }
-            for await result in Transaction.updates {
-                do {
-                    let transaction = try await self.checkVerified(result)
-                    // If transaction is verified, apply changes
-                    await self.updatePurchasedIdentifiers()
-                    await transaction.finish()
-                } catch {
-                    print("Transaction failed verification")
+            guard let self else { return }
+            for await update in Transaction.updates {
+                if let tx = try? await self.verified(update) {
+                    await self.refreshEntitlements()
+                    await tx.finish()
                 }
             }
         }
     }
     
-    /// Update purchased identifiers from current entitlements
-    private func updatePurchasedIdentifiers() async {
+    private func refreshEntitlements() async {
         purchasedIdentifiers.removeAll()
-        for await verificationResult in Transaction.currentEntitlements {
-            do {
-                let transaction = try checkVerified(verificationResult)
-                purchasedIdentifiers.insert(transaction.productID)
-            } catch {
-                // Not verified
+        for await vr in Transaction.currentEntitlements {
+            if let tx = try? verified(vr) {
+                purchasedIdentifiers.insert(tx.productID)
             }
         }
     }
     
-    /// Purchase a specific product
     func purchase(_ product: Product) async throws -> StoreKit.Transaction? {
-        let result = try await product.purchase()
-        switch result {
-        case .success(let verification):
-            let transaction = try checkVerified(verification)
-            await transaction.finish()
-            await updatePurchasedIdentifiers()
-            return transaction
-        case .userCancelled, .pending:
-            return nil
-        @unknown default:
-            return nil
+        switch try await product.purchase() {
+        case .success(let vr):
+            let tx = try verified(vr)
+            await tx.finish()
+            await refreshEntitlements()
+            return tx
+        case .userCancelled, .pending: return nil
+        @unknown default:              return nil
         }
     }
     
-    /// Verify the transaction with StoreKit
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
-        switch result {
-        case .unverified:
-            throw StoreError.failedVerification
-        case .verified(let safe):
-            return safe
+    // Helper to unwrap verified transactions / results
+    private func verified<T>(_ vr: VerificationResult<T>) throws -> T {
+        switch vr {
+        case .verified(let val): return val
+        case .unverified:        throw StoreError.failedVerification
         }
     }
     
-    enum StoreError: Error {
-        case failedVerification
-    }
+    enum StoreError: Error { case failedVerification }
 }

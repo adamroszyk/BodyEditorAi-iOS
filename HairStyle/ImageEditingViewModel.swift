@@ -21,7 +21,7 @@ class ImageEditingViewModel: ObservableObject {
     //var model: DepthAnythingV2SmallF16?
     
     // Proxy endpoint for your Gemini API key.
-    let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini")!
+    let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini2")! // earlier was https://gemini-proxy-flame.vercel.app/api/gemini
     
     // Define the target size expected by the model.
     private let targetSize = CGSize(width: 518, height: 392)
