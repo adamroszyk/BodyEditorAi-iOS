@@ -1,7 +1,23 @@
 import SwiftUI
 
 struct CatalogView: View {
-    // MARK: — Data
+    // MARK: — Prompt definitions shown in the horizontal panel
+    private let promptItems: [PromptItem] = [
+        .init(name: "🧹 Remove Objects",
+              prompt: "Remove the unwanted objects from the background keeping the subject intact"),
+        .init(name: "🎨 Clear Background",
+              prompt: "Replace the background with a plain, neutral colour"),
+        .init(name: "🎞️ Blur Background",
+              prompt: "Blur the background softly to emphasise the subject"),
+        .init(name: "🌈 Vibrant Colours",
+              prompt: "Enhance all colours for a vivid, saturated look while preserving skin tones"),
+        .init(name: "🪄 Magic Retouch",
+              prompt: "Subtly smooth skin and reduce blemishes for a polished finish"),
+        .init(name: "✨ Highlight Pop",
+              prompt: "Increase highlights and contrast to make the subject stand out")
+    ]
+
+    // MARK: — Data for grid sections
     private let bodyShapeItems: [(title: String, icon: String)] = [
         ("Chest Curve",   "Chest"),
         ("Flat Abs",      "Belly"),
@@ -35,21 +51,25 @@ struct CatalogView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
-
                     // MARK: — Header
                     HStack {
                         Text("BodyEditor Ai")
-                            .font(.largeTitle).fontWeight(.bold)
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
                             .foregroundStyle(
                                 LinearGradient(
                                     gradient: Gradient(colors: [Color.pink, Color.orange]),
-                                    startPoint: .center,
+                                    startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                         Spacer()
                     }
                     .padding(.horizontal)
+
+                    // MARK: — Prompt Panel
+                    HorizontalPromptScroll(items: promptItems)
+                        .padding(.top, 4)
 
                     // MARK: — Body Shape Section
                     SectionGrid(
@@ -80,6 +100,7 @@ struct CatalogView: View {
     }
 }
 
+// MARK: — Section Grid (unchanged)
 private struct SectionGrid: View {
     let title: String
     let items: [(title: String, icon: String)]
@@ -93,7 +114,7 @@ private struct SectionGrid: View {
                 .padding(.horizontal)
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                ForEach(items, id: \.title) { item in
+                ForEach(items, id: \ .title) { item in
                     NavigationLink(
                         destination: GenView(section: item.icon)
                     ) {
@@ -113,7 +134,7 @@ private struct SectionGrid: View {
                                     .aspectRatio(contentMode: .fit)
                                     .frame(width: 50, height: 50)
                             }
-                            
+
                             Text(item.title)
                                 .font(.caption)
                                 .multilineTextAlignment(.center)

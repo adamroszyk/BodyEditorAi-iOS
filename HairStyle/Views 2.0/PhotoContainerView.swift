@@ -18,6 +18,7 @@ import SwiftUI
     let onAddTap: () -> Void
     let onReplaceTap: () -> Void
     let onSaveTap: () -> Void
+     let onAvatarTap:   () -> Void          // ← NEW
 
     var body: some View {
         ZStack {

@@ -23,8 +23,8 @@ struct Transformation: Identifiable {
 /// Three sample transformations – swap the asset names for your own
 let onboardingTransformations: [Transformation] = [
     Transformation(
-        beforeImageName: "before_curl",
-        afterImageName:  "after_curl",
+        beforeImageName: "a1",
+        afterImageName:  "b1",
         caption: "Bouncy curls in seconds ✨"
     ),
     Transformation(

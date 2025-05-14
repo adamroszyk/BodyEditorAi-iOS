@@ -1,101 +1,127 @@
-//
-//  BeforeAfterPage.swift
-//  HairStyle
-//
-//  Created by adam on 12/05/2025.
-//
-
-
-//
-//  BeforeAfterPage.swift
-//
-
 import SwiftUI
 
 struct BeforeAfterPage: View {
     let transformation: Transformation
     let onContinue: () -> Void
-    
-    @State private var showAfter      = false
-    @State private var hasInteracted  = false   // ← NEW
+
+    @State private var showAfter     = false
+    @State private var hasInteracted = false
 
     var body: some View {
-        PinkGradient {
+        ZStack {
+            // 1) blurred fill-to-screen bg
+            GeometryReader { proxy in
+                Image(showAfter
+                        ? transformation.afterImageName
+                        : transformation.beforeImageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width,
+                           height: proxy.size.height)
+                    .clipped()
+                    .blur(radius: 30)
+            }
+
+            // 2) crisp before/after image on top
+            Image(showAfter
+                    ? transformation.afterImageName
+                    : transformation.beforeImageName)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity,
+                       maxHeight: .infinity)
+
+            // 3) caption + controls
             VStack {
                 Spacer()
 
-                Image(showAfter ? transformation.afterImageName
-                                : transformation.beforeImageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .animation(.easeInOut, value: showAfter)
-                    .transition(.opacity)
-
                 Text(transformation.caption)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .shadow(radius: 2)
+                    .shadow(radius: 5)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 16)
                     .padding(.horizontal)
+                    .padding(.bottom, 12)
 
-                // --- toggle ---------------------------------------------------
-                WideSegmentedToggle(isAfter: $showAfter)
-                    .padding(.horizontal, 32)
-                    .padding(.top, 12)
-                    // mark as “interacted” the first time it flips
-                    .onChange(of: showAfter) { _ in
-                        if !hasInteracted { hasInteracted = true }
+                VStack(spacing: 16) {
+                    WideSegmentedToggle(isAfter: $showAfter)
+                        .onChange(of: showAfter) { _ in
+                            if !hasInteracted { hasInteracted = true }
+                        }
+
+                    Button(action: onContinue) {
+                        Text("Continue")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
                     }
-
-                // --- continue -------------------------------------------------
-                Button(action: onContinue) {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(Color.white)
-                        .cornerRadius(32)
-                        .foregroundColor(.black)
+                    .buttonStyle(.plain)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(24)
+                    .shadow(color: .black.opacity(0.25),
+                            radius: 8, x: 0, y: 4)
+                    .opacity(hasInteracted ? 1 : 0.3)
+                    .disabled(!hasInteracted)
                 }
-                .padding(.horizontal, 40)
-                .padding(.top, 12)
-                .opacity(hasInteracted ? 1 : 0.3)   // ← uses hasInteracted
-                .disabled(!hasInteracted)           // ← uses hasInteracted
-
-                Spacer(minLength: 30)
+                .padding(20)
+                .background(.ultraThinMaterial)
+                .cornerRadius(28)
+                .shadow(color: .black.opacity(0.25),
+                        radius: 12, x: 0, y: 6)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal)
         }
+        .ignoresSafeArea()    // ← ensures your blurred bg shows under the home-indicator too
     }
 }
 
-/// A white-on-white segmented control with black text + outline
+
+/// A pill‐shaped toggle whose selected segment
+/// uses a stronger material + higher opacity.
 struct WideSegmentedToggle: View {
-    @Binding var isAfter: Bool           // true → “After” selected
-    private let height: CGFloat = 48     // tweak to taste
-    
+    @Binding var isAfter: Bool
+    private let height: CGFloat = 48
+
     var body: some View {
         HStack(spacing: 0) {
-            segment("Before", active: !isAfter)
-                .onTapGesture { isAfter = false }
-            segment("After",  active:  isAfter)
-                .onTapGesture { isAfter = true }
+            segment("Before", active: !isAfter) {
+                withAnimation(.easeInOut) { isAfter = false }
+            }
+            segment("After",  active:  isAfter) {
+                withAnimation(.easeInOut) { isAfter = true }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: height/2, style: .continuous))
-        
+        .frame(height: height)
+        .background(.ultraThinMaterial)  // parent track
+        .clipShape(RoundedRectangle(
+            cornerRadius: height/2,
+            style: .continuous
+        ))
+        .shadow(color: .black.opacity(0.25),
+                radius: 8, x: 0, y: 4)
+        .animation(.easeInOut, value: isAfter)
+    }
+
+    private func segment(
+        _ label: String,
+        active: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.headline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: height/2,
+                             style: .continuous)
+                // use a stronger material when selected…
+                .fill(active ? .regularMaterial : .ultraThinMaterial)
+                // …and bump opacity for extra pop
+                .opacity(active ? 1.0 : 0.6)
+        )
+        .animation(.easeInOut, value: active)
     }
 }
-
-private func segment(_ label: String, active: Bool) -> some View {
-       Text(label)
-           .font(.headline.weight(.semibold))
-           .foregroundColor(.black)              // always black
-           .frame(maxWidth: .infinity,
-                  minHeight: 48)
-           .background(                          // subtle highlight when active
-               active ? Color.black.opacity(0.06) : Color.white
-           )
-   }
-

@@ -13,12 +13,21 @@ struct ThumbItem: Identifiable {
 
 // MARK: – GenView --------------------------------------------------------------
 struct GenView: View {
+    
+    // NEW – sheet & state for avatar picker
+    @State private var showingAvatarPicker = false
+    @State private var builtInAvatars: [UIImage] = {
+        (1...10).compactMap { UIImage(named: String(format: "Persona%02d", $0)) }
+    }()
+    
+    
+    
     // MARK: Inputs
     let section: String
-
+    
     // MARK: View-model
     @StateObject private var viewModel = ImageEditingViewModel()
-
+    
     // MARK: UI state
     @State private var selectedOption: EnhancementOption?
     @State private var inputImage: UIImage?
@@ -26,18 +35,18 @@ struct GenView: View {
     @State private var sliderPosition: CGFloat = 0.5
     @State private var showSlider = false
     @State private var showSaveSuccessAlert = false
-
+    
     // thumbnails: original + generated
     @State private var thumbs: [ThumbItem] = []
     @State private var currentIdx: Int? = nil
-
+    
     // paywall modal flag
     @State private var showPaywallModal = false
-
+    
     // MARK: Environment
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
-
+    
     // Derived
     private var isGenerating: Bool { thumbs.contains { !$0.isOriginal && $0.isLoading } }
     private var hasThumbs: Bool { !thumbs.isEmpty }
@@ -46,7 +55,7 @@ struct GenView: View {
         && thumbs.count >= 5
         && thumbs.dropFirst().allSatisfy { !$0.isLoading }
     }
-
+    
     // MARK: Body ----------------------------------------------------------------
     var body: some View {
         ZStack {
@@ -60,11 +69,12 @@ struct GenView: View {
                     showSlider: $showSlider,
                     onAddTap: handleReplacePhoto,
                     onReplaceTap: handleReplacePhoto,
-                    onSaveTap: saveImage
+                    onSaveTap: saveImage,
+                    onAvatarTap:   { showingAvatarPicker = true }
                 )
                 .frame(width: geo.size.width, height: geo.size.height)
                 .ignoresSafeArea()
-
+                
                 if inputImage != nil {
                     TopButtons(
                         onBack: { dismiss() },
@@ -75,7 +85,7 @@ struct GenView: View {
                     )
                     .padding(.horizontal, 16)
                 }
-
+                
                 VStack {
                     Spacer()
                     if hasThumbs {
@@ -109,94 +119,107 @@ struct GenView: View {
         .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
             ImagePicker(image: $inputImage)
         }
-        .alert("Saved", isPresented: $showSaveSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: { Text("Image saved to Photos") }
-        .onChange(of: shouldShowPaywall) { if $0 { showPaywallModal = true } }
-        .fullScreenCover(isPresented: $showPaywallModal) {
-            WeeklyPaywallView(
-                thumbs: thumbs,
-                onUnlock: { showPaywallModal = false },
-                onClose: {
-                    showPaywallModal = false
-                    dismiss()
-                }
+        .sheet(isPresented: $showingAvatarPicker) {
+            AvatarPickerView(
+                avatars: builtInAvatars,
+                onSelect: { ui in
+                    inputImage = ui
+                    loadImage()               // reuse existing helper
+                    showingAvatarPicker = false
+                },
+                onCancel: { showingAvatarPicker = false }
             )
-            .environmentObject(subscriptionManager)
         }
-    }
-
-    // MARK: Helpers ------------------------------------------------------------
-    private var mainDisplayedImage: UIImage? {
-        guard let idx = currentIdx, thumbs.indices.contains(idx) else {
-            return viewModel.editedImage
-        }
-        return idx == 0 ? inputImage : thumbs[idx].image
-    }
-
-    // MARK: Generation ----------------------------------------------------------
-    private func beginParallelGeneration() {
-        guard let base = inputImage, let prompt = selectedOption?.prompt else { return }
-        thumbs = [ThumbItem(id: -1, image: base, isLoading: false)] +
-                 (0..<4).map { ThumbItem(id: $0, isLoading: true) }
-        currentIdx = 1
-        Task.detached(priority: .userInitiated) {
-            await withTaskGroup(of: (Int, UIImage?).self) { group in
-                for idx in 0..<4 {
-                    group.addTask { (idx, await ImageEditingWorker.generate(input: base, prompt: prompt)) }
+            .alert("Saved", isPresented: $showSaveSuccessAlert) {
+                Button("OK", role: .cancel) {}
+            } message: { Text("Image saved to Photos") }
+                .onChange(of: shouldShowPaywall) { if $0 { showPaywallModal = true } }
+                .fullScreenCover(isPresented: $showPaywallModal) {
+                    WeeklyPaywallView(
+                        thumbs: thumbs,
+                        onUnlock: { showPaywallModal = false },
+                        onClose: {
+                            showPaywallModal = false
+                            dismiss()
+                        }
+                    )
+                    .environmentObject(subscriptionManager)
                 }
-                for await (idx, img) in group {
-                    await MainActor.run {
-                        thumbs[idx + 1].image = img
-                        thumbs[idx + 1].isLoading = false
+        }
+        
+        // MARK: Helpers ------------------------------------------------------------
+         var mainDisplayedImage: UIImage? {
+            guard let idx = currentIdx, thumbs.indices.contains(idx) else {
+                return viewModel.editedImage
+            }
+            return idx == 0 ? inputImage : thumbs[idx].image
+        }
+        
+        // MARK: Generation ----------------------------------------------------------
+         func beginParallelGeneration() {
+            guard let base = inputImage, let prompt = selectedOption?.prompt else { return }
+            thumbs = [ThumbItem(id: -1, image: base, isLoading: false)] +
+            (0..<4).map { ThumbItem(id: $0, isLoading: true) }
+            currentIdx = 1
+            Task.detached(priority: .userInitiated) {
+                await withTaskGroup(of: (Int, UIImage?).self) { group in
+                    for idx in 0..<4 {
+                        group.addTask { (idx, await ImageEditingWorker.generate(input: base, prompt: prompt)) }
+                    }
+                    for await (idx, img) in group {
+                        await MainActor.run {
+                            thumbs[idx + 1].image = img
+                            thumbs[idx + 1].isLoading = false
+                        }
                     }
                 }
             }
         }
-    }
-
-    // MARK: UI actions ---------------------------------------------------------
-    private func handleReplacePhoto() { showingImagePicker = true }
-    private func loadImage() {
-        guard let img = inputImage else { return }
-        viewModel.editedImage = img
-        thumbs.removeAll()
-        currentIdx = nil
-    }
-    private func saveImage() {
-        guard let img = mainDisplayedImage else { return }
-        UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
-        showSaveSuccessAlert = true
-    }
-    private func shareImage() {
-        guard let img = mainDisplayedImage else { return }
-        let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
-        UIApplication.shared.windows.first?.rootViewController?.present(av, animated: true)
-    }
-
-    // MARK: Enhancement options -----------------------------------------------
-    private var enhancementOptions: [EnhancementOption] {
-        switch section {
-        case "Chest":    return BodyEnhancementPrompts.breast
-        case "Belly":    return BodyEnhancementPrompts.belly
-        case "Buttock":  return BodyEnhancementPrompts.buttock
-        case "Muscle":   return BodyEnhancementPrompts.muscle
-        case "Hair":     return BodyEnhancementPrompts.hair
-        case "Nose":     return BodyEnhancementPrompts.nose
-        case "Eyes":     return BodyEnhancementPrompts.eyes
-        case "Skin":     return BodyEnhancementPrompts.skin
-        case "Face":     return BodyEnhancementPrompts.face
-        case "Lips":     return BodyEnhancementPrompts.lips
-        case "Waist":    return BodyEnhancementPrompts.waist
-        case "Legs":     return BodyEnhancementPrompts.leg
-        case "jewellery":return BodyEnhancementPrompts.jewellery
-        case "Eyewear":  return BodyEnhancementPrompts.eyewear
-        default:          return []
+        
+        // MARK: UI actions ---------------------------------------------------------
+         func handleReplacePhoto() { showingImagePicker = true }
+         func loadImage() {
+            guard let img = inputImage else { return }
+            viewModel.editedImage = img
+            thumbs.removeAll()
+            currentIdx = nil
+        }
+         func saveImage() {
+            guard let img = mainDisplayedImage else { return }
+            UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
+            showSaveSuccessAlert = true
+        }
+         func shareImage() {
+            guard let img = mainDisplayedImage else { return }
+            let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
+            UIApplication.shared.windows.first?.rootViewController?.present(av, animated: true)
+        }
+        
+        // MARK: Enhancement options -----------------------------------------------
+         var enhancementOptions: [EnhancementOption] {
+            switch section {
+            case "Chest":    return BodyEnhancementPrompts.breast
+            case "Belly":    return BodyEnhancementPrompts.belly
+            case "Buttock":  return BodyEnhancementPrompts.buttock
+            case "Muscle":   return BodyEnhancementPrompts.muscle
+            case "Hair":     return BodyEnhancementPrompts.hair
+            case "Nose":     return BodyEnhancementPrompts.nose
+            case "Eyes":     return BodyEnhancementPrompts.eyes
+            case "Skin":     return BodyEnhancementPrompts.skin
+            case "Face":     return BodyEnhancementPrompts.face
+            case "Lips":     return BodyEnhancementPrompts.lips
+            case "Waist":    return BodyEnhancementPrompts.waist
+            case "Legs":     return BodyEnhancementPrompts.leg
+            case "jewellery":return BodyEnhancementPrompts.jewellery
+            case "Eyewear":  return BodyEnhancementPrompts.eyewear
+            default:          return []
+            }
         }
     }
-}
+    
 
- struct ThumbnailsStrip: View {
+
+struct ThumbnailsStrip: View {
     let thumbs: [ThumbItem]
     let onSelect: (Int) -> Void
     let onRetry: () -> Void
