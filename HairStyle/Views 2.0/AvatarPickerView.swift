@@ -1,12 +1,6 @@
-//
-//  AvatarPickerView.swift
-//  HairStyle
-//
-//  Created by adam on 14/05/2025.
-//
 import SwiftUI
 
-
+/// Grid picker that shows the bundled persona shots.
 struct AvatarPickerView: View {
     let avatars: [UIImage]
     let onSelect: (UIImage) -> Void
@@ -31,9 +25,11 @@ struct AvatarPickerView: View {
                 .padding()
             }
             .navigationTitle("Select AI Avatar")
-            .toolbar { ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel", action: onCancel)
-            }}
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+            }
         }
     }
 }

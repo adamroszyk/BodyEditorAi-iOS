@@ -1,4 +1,4 @@
-2025-05-12 12:41:38
+2025-05-27 09:54:38
 //
 //  LoadingMessages.swift
 //  HairStyle
@@ -78,44 +78,86 @@ enum LoadingMessages {
 }
 import SwiftUI
 
+/// Grid picker that shows the bundled persona shots.
+struct AvatarPickerView: View {
+    let avatars: [UIImage]
+    let onSelect: (UIImage) -> Void
+    let onCancel: () -> Void
+
+    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 20)]
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(avatars.indices, id: \.self) { idx in
+                        Image(uiImage: avatars[idx])
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 100, height: 100)
+                            .clipped()
+                            .cornerRadius(12)
+                            .onTapGesture { onSelect(avatars[idx]) }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Select AI Avatar")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+            }
+        }
+    }
+}
+import SwiftUI
+
 // MARK: – Photo / slider view
- struct PhotoWithRefreshOverlay: View {
+// MARK: – Photo / slider / empty‑state wrapper
+struct PhotoWithRefreshOverlay: View {
     // Inputs
     let originalImage: UIImage?
     let editedImage: UIImage?
     let depthMapImage: UIImage?
     let isGenerating: Bool
+
     @Binding var sliderPosition: CGFloat
     @Binding var showSlider: Bool
+
     let onReplaceTap: () -> Void
     let onAddTap: () -> Void
+    let onAvatarTap: () -> Void     // NEW
     let onSaveTap: () -> Void
 
-    // Zoom / pan state omitted for brevity – unchanged from earlier version
-
     var body: some View {
-        ZStack {
-            contentView
-        }
+        ZStack { contentView }
     }
 
-    @ViewBuilder private var contentView: some View {
+    @ViewBuilder
+    private var contentView: some View {
         if let orig = originalImage, let edit = editedImage {
             Image(uiImage: edit).resizable().scaledToFit()
         } else if let edit = editedImage {
             Image(uiImage: edit).resizable().scaledToFit()
         } else {
-            EmptyStateView(onAddTap: onAddTap, isGenerating: isGenerating)
+            EmptyStateView(
+                onAddTap: onAddTap,
+                onAvatarTap: onAvatarTap,
+                isGenerating: isGenerating
+            )
         }
     }
 }
 
-
+// MARK: – Empty state with two shiny buttons
 struct EmptyStateView: View {
     let onAddTap: () -> Void
+    let onAvatarTap: () -> Void
     let isGenerating: Bool
 
     @State private var shineAdd = false
+    @State private var shineAvatar = false
 
     var body: some View {
         VStack {
@@ -127,43 +169,67 @@ struct EmptyStateView: View {
                     .foregroundColor(.white)
                     .padding()
             } else {
-                Button(action: {
-                    shineAdd = false
-                    onAddTap()
-                }) {
-                    VStack(spacing: 12) {
-                        Image(systemName: "photo.fill.on.rectangle.fill")
-                            .font(.system(size: 40))
-                        Text("Add Image +")
-                            .font(.headline)
-                    }
-                    .foregroundColor(.black)
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(12)
-                    .shadow(radius: 10)
-                    // shimmer overlay
-                    .overlay(
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [Color.white.opacity(0.1), Color.white.opacity(0.4), Color.white.opacity(0.1)]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .rotationEffect(.degrees(30))
-                            .offset(x: shineAdd ? 200 : -200)
-                            .mask(RoundedRectangle(cornerRadius: 12))
+                HStack(spacing: 20) {
+                    shimmerButton(
+                        systemIcon: "photo.fill.on.rectangle.fill",
+                        label: "Add Photo",
+                        action: onAddTap,
+                        shine: $shineAdd
                     )
-                }
-                .onAppear {
-                    withAnimation(Animation.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                        shineAdd = true
-                    }
+                    shimmerButton(
+                        systemIcon: "person.crop.rectangle",
+                        label: "Select AI Avatar",
+                        action: onAvatarTap,
+                        shine: $shineAvatar
+                    )
                 }
             }
             Spacer()
+        }
+    }
+
+    // Shared shimmering‑button builder
+    private func shimmerButton(systemIcon: String,
+                               label: String,
+                               action: @escaping () -> Void,
+                               shine: Binding<Bool>) -> some View {
+        Button(action: {
+            shine.wrappedValue = false
+            action()
+        }) {
+            VStack(spacing: 12) {
+                Image(systemName: systemIcon)
+                    .font(.system(size: 40))
+                Text(label).font(.headline)
+            }
+            .foregroundColor(.black)
+            .padding()
+            .frame(width: 150)
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(radius: 10)
+            .overlay(
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.1),
+                                Color.white.opacity(0.4),
+                                Color.white.opacity(0.1)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .rotationEffect(.degrees(30))
+                    .offset(x: shine.wrappedValue ? 200 : -200)
+                    .mask(RoundedRectangle(cornerRadius: 12))
+            )
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                shine.wrappedValue = true
+            }
         }
     }
 }
@@ -189,6 +255,133 @@ struct EmptyStateView: View {
             print("Generation failed: \(error)")
             return nil
         }
+    }
+}
+import SwiftUI
+
+struct BeforeAfterPage: View {
+    let transformation: Transformation
+    let onContinue: () -> Void
+
+    @State private var showAfter     = false
+    @State private var hasInteracted = false
+
+    var body: some View {
+        ZStack {
+            // 1) blurred fill-to-screen bg
+            GeometryReader { proxy in
+                Image(showAfter
+                        ? transformation.afterImageName
+                        : transformation.beforeImageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width,
+                           height: proxy.size.height)
+                    .clipped()
+                    .blur(radius: 30)
+            }
+
+            // 2) crisp before/after image on top
+            Image(showAfter
+                    ? transformation.afterImageName
+                    : transformation.beforeImageName)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity,
+                       maxHeight: .infinity)
+
+            // 3) caption + controls
+            VStack {
+                Spacer()
+
+                Text(transformation.caption)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .shadow(radius: 5)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+
+                VStack(spacing: 16) {
+                    WideSegmentedToggle(isAfter: $showAfter)
+                        .onChange(of: showAfter) { _ in
+                            if !hasInteracted { hasInteracted = true }
+                        }
+
+                    Button(action: onContinue) {
+                        Text("Continue")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                    }
+                    .buttonStyle(.plain)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(24)
+                    .shadow(color: .black.opacity(0.25),
+                            radius: 8, x: 0, y: 4)
+                    .opacity(hasInteracted ? 1 : 0.3)
+                    .disabled(!hasInteracted)
+                }
+                .padding(20)
+                .background(.ultraThinMaterial)
+                .cornerRadius(28)
+                .shadow(color: .black.opacity(0.25),
+                        radius: 12, x: 0, y: 6)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 40)
+            }
+        }
+        .ignoresSafeArea()    // ← ensures your blurred bg shows under the home-indicator too
+    }
+}
+
+
+/// A pill‐shaped toggle whose selected segment
+/// uses a stronger material + higher opacity.
+struct WideSegmentedToggle: View {
+    @Binding var isAfter: Bool
+    private let height: CGFloat = 48
+
+    var body: some View {
+        HStack(spacing: 0) {
+            segment("Before", active: !isAfter) {
+                withAnimation(.easeInOut) { isAfter = false }
+            }
+            segment("After",  active:  isAfter) {
+                withAnimation(.easeInOut) { isAfter = true }
+            }
+        }
+        .frame(height: height)
+        .background(.ultraThinMaterial)  // parent track
+        .clipShape(RoundedRectangle(
+            cornerRadius: height/2,
+            style: .continuous
+        ))
+        .shadow(color: .black.opacity(0.25),
+                radius: 8, x: 0, y: 4)
+        .animation(.easeInOut, value: isAfter)
+    }
+
+    private func segment(
+        _ label: String,
+        active: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.headline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: height/2,
+                             style: .continuous)
+                // use a stronger material when selected…
+                .fill(active ? .regularMaterial : .ultraThinMaterial)
+                // …and bump opacity for extra pop
+                .opacity(active ? 1.0 : 0.6)
+        )
+        .animation(.easeInOut, value: active)
     }
 }
 import SwiftUI
@@ -410,67 +603,135 @@ private struct OptionPill: View {
 //  OnboardingFlowView.swift
 //  HairStyle
 //
-//  Pink-gradient, pill-style onboarding that matches the mock-ups.
-//  Pages:
-//    1. Budget picker
-//    2. Skill-level picker
-//    3. Social-proof / rate-us
-//    4. Notification permission
-//    5. Paywall (your existing WeeklyPaywallView)
-//
-//  Drop this file in; no other changes needed.
-//
 
 import SwiftUI
-import StoreKit                     // rating
-import UserNotifications            // notification prompt
+import StoreKit
+import UserNotifications
 
-// MARK: – Entry point
+// ────────── Root onboarding flow ──────────
 struct OnboardingFlowView: View {
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("isPremium")              private var isPremium              = false
+    @AppStorage("hasCompletedOnboarding") private var done     = false
+    @AppStorage("isPremium")              private var premium  = false
     
-    @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @EnvironmentObject private var manager: SubscriptionManager
     @State private var page = 0
+    /// Convenience: number of Before→After screens
+    private var extraStart: Int { onboardingTransformations.count }
     
     var body: some View {
         TabView(selection: $page) {
-            
-            BudgetPage     { page += 1 }.tag(0)
-            SkillPage      { page += 1 }.tag(1)
-            ReviewPage     { page += 1 }.tag(2)
-            NotifyPage     { page += 1 }.tag(3)
-            
-            WeeklyPaywallView(                      // existing paywall
-                thumbs:        subscriptionManager.previewThumbs,
-                onUnlock:      { isPremium = true;  hasCompletedOnboarding = true },
-                onClose:       { /* not shown in onboarding */ }
+            // ── Before / After pages ───────────────────────────
+            ForEach(0..<onboardingTransformations.count, id: \.self) { idx in
+                BeforeAfterPage(
+                    transformation: onboardingTransformations[idx]
+                ) { page += 1 }
+                    .tag(idx)               // 0,1,2,…
+            }
+
+            ReviewPage { page += 1 }        // tag N
+                .tag(extraStart)
+
+            BudgetPage { page += 1 }        // tag N+1
+                .tag(extraStart + 1)
+
+            // SkillPage *no longer* finishes the flow – it just advances
+            SkillPage { page += 1 }         // tag N+2
+                .tag(extraStart + 2)
+
+            // 🔑 NEW – Paywall right after the skill page
+            PaywallPageView(
+                isPremium: $premium,        // bind to @AppStorage
+                onComplete: finish          // call finish() afterwards
             )
-            .environmentObject(subscriptionManager)
-            .tag(4)
+            .tag(extraStart + 3)
+
+            // Optional: uncomment NotifyPage if you still need it
+            // NotifyPage { finish() }
+            //     .tag(extraStart + 4)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .ignoresSafeArea()
     }
+    
+    private func finish() { done = true }
 }
 
-// MARK: – Common styling helpers
-private struct GradientBackground<Content: View>: View {
-    let content: () -> Content
+// MARK: – Gradient helper
+struct PinkGradient<Content: View>: View {
+    @ViewBuilder var content: () -> Content
     var body: some View {
         LinearGradient(
-            gradient: Gradient(colors: [
-                Color(red: 1, green: 0.95, blue: 0.96),
-                Color(red: 1, green: 0.87, blue: 0.90)
-            ]),
-            startPoint: .top, endPoint: .bottom)
+            colors: [Color(red: 1, green: 0.95, blue: 0.96),
+                     Color(red: 1, green: 0.87, blue: 0.90)],
+            startPoint: .top, endPoint: .bottom
+        )
         .ignoresSafeArea()
         .overlay(content())
     }
 }
 
+/// A reusable dark mesh-gradient background that you can
+/// overlay with any content.
+struct DarkMeshGradient<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+    
+    var body: some View {
+        ZStack {
+            // --- Mesh: 3×3 grid, 9 control points --------------
+            if #available(iOS 18.0, *) {
+                MeshGradient(
+                    width: 3,
+                    height: 3,
+                    points: [
+                        .init(0.00, 0.00), .init(0.50, 0.00), .init(1.00, 0.00),
+                        .init(0.00, 0.50), .init(0.50, 0.50), .init(1.00, 0.50),
+                        .init(0.00, 1.00), .init(0.50, 1.00), .init(1.00, 1.00)
+                    ],
+                    
+                    // Subtle dark palette –- corners almost black,
+                    // mid-tones get a touch of indigo / teal.
+                    colors: [
+                        .black,                     Color(hex: 0x10121A),       .black,
+                        Color(hex: 0x06070C),       Color(hex: 0x1A1C27),       Color(hex: 0x0E1119),
+                        .black,                     Color(hex: 0x121726),       .black
+                    ]
+                )
+                // A big blur softens the colour transitions so you
+                // don’t see obvious “patches” from the mesh cells.
+                .blur(radius: 80)
+            } else {
+                // Fallback on earlier versions
+            }
+            
+            // Faint angular sweep = a hint of depth / vignette.
+            AngularGradient(
+                colors: [.clear, .white.opacity(0.05), .clear],
+                center: .center
+            )
+            .blendMode(.overlay)
+        }
+        .ignoresSafeArea()
+        .overlay(content())          // your foreground
+    }
+}
+
+// MARK: - Small colour helper
+extension Color {
+    /// Initialise `Color` with 24-bit hex, e.g. `0x1A2B3C`
+    init(hex: UInt32, opacity: Double = 1) {
+        self.init(.sRGB,
+                  red:   Double((hex >> 16) & 0xff) / 255,
+                  green: Double((hex >>  8) & 0xff) / 255,
+                  blue:  Double( hex        & 0xff) / 255,
+                  opacity: opacity)
+    }
+}
+
+
+
+// MARK: – Pill helper
 private struct Pill: View {
-    let title: String
+    var title: String
     var body: some View {
         Text(title)
             .font(.headline.weight(.semibold))
@@ -478,43 +739,40 @@ private struct Pill: View {
             .padding(.horizontal, 30)
             .background(Color.white)
             .cornerRadius(26)
-            .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
 }
-
-// MARK: – ❶ Budget
+// MARK: – Page – Usage volume
 private struct BudgetPage: View {
     let onContinue: () -> Void
     @State private var selection: String?
     
-    private let options: [(emoji: String, text: String)] = [
-        ("✨", "Light"),
-        ("💄", "Affordable"),
-        ("💰", "High-end"),
-        ("🛍️", "Elite")
+    /// Options deliberately steer frequent editors to Premium
+    private let opts: [(String,String)] = [
+        ("📷", "1–2 photos / week "),
+        ("⚡️", "Up to 15 edits / week "),
+        ("💎", "Unlimited edits"),
+        ("🚀", "Batch HD exports")
     ]
     
     var body: some View {
-        GradientBackground {
-            VStack(spacing: 40) {
-                
+        DarkMeshGradient {
+            VStack(spacing: 42) {
                 Spacer().frame(height: 60)
                 
-                Text("What's your\nbudget?")
+                Text("How many photos\nwill you **perfect** every week?")
                     .font(.largeTitle.bold())
+                    .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 
-                VStack(spacing: 20) {
-                    ForEach(options, id: \.text) { item in
-                        Button {
-                            selection = item.text
-                        } label: {
-                            Pill(title: "\(item.emoji) \(item.text)")
+                VStack(spacing: 22) {
+                    ForEach(opts, id:\.1) { em, txt in
+                        Button { selection = txt } label: {
+                            Pill(title: "\(em)  \(txt)")
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 26)
-                                        .stroke(Color.black.opacity(
-                                            selection == item.text ? 0.4 : 0
-                                        ), lineWidth: 2)
+                                        .stroke(Color.yellow.opacity(selection == txt ? 0.8 : 0),
+                                                lineWidth: 2)
                                 )
                         }
                     }
@@ -523,7 +781,9 @@ private struct BudgetPage: View {
                 Spacer()
                 
                 Button(action: onContinue) {
-                    Text("Continue")
+                    Text(selection?.contains("Premium") == true
+                         ? "Unlock AI Power →"
+                         : "Next")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
@@ -531,49 +791,47 @@ private struct BudgetPage: View {
                         .cornerRadius(32)
                 }
                 .padding(.horizontal, 40)
-                .opacity(selection == nil ? 0.4 : 1)
+                .opacity(selection == nil ? 0.3 : 1)
                 .disabled(selection == nil)
                 
-                Spacer().frame(height: 30)
+                Spacer(minLength: 30)
             }
             .padding(.horizontal)
         }
     }
 }
 
-// MARK: – ❷ Skill level
+
+// MARK: – Page – Editing power level
 private struct SkillPage: View {
     let onContinue: () -> Void
     @State private var selection: String?
     
-    private let options: [(emoji: String, text: String)] = [
-        ("🍃", "Beginner"),
-        ("✨", "Intermediate"),
-        ("💄", "Expert"),
-        ("🎨", "Pro")
+    private let opts: [(String,String)] = [
+        ("🙂", "Basic smoothing"),
+        ("💪", "Shape & Slim"),
+        ("🔥", "Full Body Makeover"),
+        ("❤️", "4K full picture edits")
     ]
     
     var body: some View {
-        GradientBackground {
-            VStack(spacing: 40) {
-                
+        DarkMeshGradient {
+            VStack(spacing: 42) {
                 Spacer().frame(height: 60)
                 
-                Text("How would you rate\nyour makeup skills?")
+                Text("Choose your\nediting **power level**")
                     .font(.largeTitle.bold())
+                    .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 
-                VStack(spacing: 20) {
-                    ForEach(options, id: \.text) { item in
-                        Button {
-                            selection = item.text
-                        } label: {
-                            Pill(title: "\(item.emoji) \(item.text)")
+                VStack(spacing: 22) {
+                    ForEach(opts, id:\.1) { em, txt in
+                        Button { selection = txt } label: {
+                            Pill(title: "\(em)  \(txt)")
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 26)
-                                        .stroke(Color.black.opacity(
-                                            selection == item.text ? 0.4 : 0
-                                        ), lineWidth: 2)
+                                        .stroke(Color.yellow.opacity(selection == txt ? 0.8 : 0),
+                                                lineWidth: 2)
                                 )
                         }
                     }
@@ -582,7 +840,9 @@ private struct SkillPage: View {
                 Spacer()
                 
                 Button(action: onContinue) {
-                    Text("Continue")
+                    Text(selection?.contains("Premium") == true
+                         ? "Continue →"
+                         : "Finish")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
@@ -590,50 +850,61 @@ private struct SkillPage: View {
                         .cornerRadius(32)
                 }
                 .padding(.horizontal, 40)
-                .opacity(selection == nil ? 0.4 : 1)
+                .opacity(selection == nil ? 0.3 : 1)
                 .disabled(selection == nil)
                 
-                Spacer().frame(height: 30)
+                Spacer(minLength: 30)
             }
             .padding(.horizontal)
         }
     }
 }
 
-// MARK: – ❸ Review / social proof
+
 private struct ReviewPage: View {
     let onContinue: () -> Void
     
     var body: some View {
-        GradientBackground {
-            VStack(spacing: 32) {
-                
+        DarkMeshGradient {        // ⬅️ new gradient
+            VStack(spacing: 36) {
                 Spacer().frame(height: 60)
                 
-                Text("Trusted by Over\n1+ Million People!")
-                    .font(.largeTitle.bold())
+                Text("Enjoying HairStyle?")
+                    .font(.title.bold())
+                    .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 
-                Image("kiss_placeholder")            // replace w/ asset
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 200)
-                    .padding(.vertical, 10)
+                Text("Keep stunning looks coming – a quick **5-star** rating helps us add more styles for you!")
+                    .font(.title3.weight(.medium))
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
                 
-                HStack(spacing: 4) {
-                    ForEach(0..<5) { _ in Image(systemName: "star.fill") }
+                VStack(spacing: 8) {
+                    HStack(spacing: 10) {
+                        ForEach(0..<5) { _ in
+                            Image(systemName: "star.fill")
+                                .resizable()
+                                .frame(width: 44, height: 44)
+                                .foregroundColor(.yellow)
+                        }
+                    }
+                    Text("5 / 5")
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(.yellow)
                 }
-                .foregroundColor(.yellow)
-                .font(.largeTitle)
+                .shadow(radius: 4)
                 
                 Spacer()
                 
                 Button {
-                    rateNow()
+                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                        SKStoreReviewController.requestReview(in: scene)
+                    }
                     onContinue()
                 } label: {
-                    Text("Leave a Review! 🥰")
-                        .font(.headline)
+                    Text("Rate 5 Stars ⭐️")
+                        .font(.headline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
                         .background(Color.white)
@@ -641,73 +912,58 @@ private struct ReviewPage: View {
                 }
                 .padding(.horizontal, 40)
                 
-                Spacer().frame(height: 30)
+                Spacer(minLength: 30)
             }
             .padding(.horizontal)
-        }
-    }
-    
-    private func rateNow() {
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: scene)
         }
     }
 }
 
-// MARK: – ❹ Notification permission
+
+// MARK: – Page – Notification permission (FINISH)
 private struct NotifyPage: View {
     let onContinue: () -> Void
-    @State private var isRequesting = false
-    
+    @State private var requesting = false
+
     var body: some View {
-        GradientBackground {
-            VStack(spacing: 32) {
-                
-                Spacer().frame(height: 60)
-                
+        PinkGradient {
+            VStack(spacing:32) {
+                Spacer().frame(height:60)
+
                 Text("Allow Notifications")
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
-                
-                // illustrative mock (replace with real asset if desired)
-                Image(systemName: "app.badge.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 180)
+
+                Image(systemName:"app.badge.fill")
+                    .resizable().scaledToFit()
+                    .frame(width:180)
                     .foregroundColor(.pink)
-                    .padding(.vertical)
-                
+
                 Spacer()
-                
                 Button {
-                    requestPermission()
+                    requesting = true
+                    UNUserNotificationCenter.current()
+                        .requestAuthorization(options: [.alert,.sound,.badge]) { _,_ in
+                            DispatchQueue.main.async {
+                                requesting = false
+                                onContinue()
+                            }
+                        }
                 } label: {
                     Text("Enable notifications! 🥰")
                         .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
+                        .frame(maxWidth:.infinity)
+                        .padding(.vertical,18)
                         .background(Color.white)
                         .cornerRadius(32)
                 }
-                .padding(.horizontal, 40)
-                .opacity(isRequesting ? 0.5 : 1)
-                .disabled(isRequesting)
-                
-                Spacer().frame(height: 30)
+                .padding(.horizontal,40)
+                .opacity(requesting ? 0.5 : 1)
+                .disabled(requesting)
+                Spacer(minLength:30)
             }
             .padding(.horizontal)
         }
-    }
-    
-    private func requestPermission() {
-        isRequesting = true
-        UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
-                DispatchQueue.main.async {
-                    isRequesting = false
-                    onContinue()
-                }
-            }
     }
 }
 //
@@ -720,7 +976,7 @@ private struct NotifyPage: View {
 import SwiftUI
 
 // MARK: – Photo container
- struct PhotoContainerView: View {
+struct PhotoContainerView: View {
     @Binding var inputImage: UIImage?
     let isGenerating: Bool
     let editedImage: UIImage?
@@ -729,24 +985,36 @@ import SwiftUI
     @Binding var showSlider: Bool
     let onAddTap: () -> Void
     let onReplaceTap: () -> Void
+    let onAvatarTap: () -> Void     // NEW
     let onSaveTap: () -> Void
 
     var body: some View {
-        ZStack {
-            backgroundView.ignoresSafeArea()
-            PhotoWithRefreshOverlay(
-                originalImage: inputImage,
-                editedImage: editedImage,
-                depthMapImage: depthMapImage,
-                isGenerating: isGenerating,
-                sliderPosition: $sliderPosition,
-                showSlider: $showSlider,
-                onReplaceTap: onReplaceTap,
-                onAddTap: onAddTap,
-                onSaveTap: onSaveTap
-            )
-        }
-    }
+           ZStack {
+               // ── NEW: dynamic blurred background ──────────────────────────────
+               if let bg = editedImage ?? inputImage {          // fall back if editedImage is nil
+                   Image(uiImage: bg)
+                       .resizable()
+                       .scaledToFill()                          // fills width *and* height
+                       .blur(radius: 7)                         // ⟵ requested blur
+                       .ignoresSafeArea()                       // under status-/home-bars
+               }
+
+               // existing foreground content
+               PhotoWithRefreshOverlay(
+                   originalImage: inputImage,
+                   editedImage: editedImage,
+                   depthMapImage: depthMapImage,
+                   isGenerating: isGenerating,
+                   sliderPosition: $sliderPosition,
+                   showSlider: $showSlider,
+                   onReplaceTap: onReplaceTap,
+                   onAddTap: onAddTap,
+                   onAvatarTap: onAvatarTap,
+                   onSaveTap: onSaveTap
+               )
+           }
+       }
+
 
     @ViewBuilder private var backgroundView: some View {
         if let img = inputImage {
@@ -760,7 +1028,7 @@ import SwiftUI
 import UIKit
 import StoreKit
 
-// MARK: – Thumbnail item model -------------------------------------------------
+// MARK: – Thumbnail‑strip item
 struct ThumbItem: Identifiable {
     /// id == -1 → original; 0…3 → generated slots
     let id: Int
@@ -769,18 +1037,22 @@ struct ThumbItem: Identifiable {
     var isOriginal: Bool { id == -1 }
 }
 
-// MARK: – GenView --------------------------------------------------------------
+// MARK: – GenView
 struct GenView: View {
     // MARK: Inputs
     let section: String
 
-    // MARK: View-model
+    init(section: String) {
+         self.section = section
+     }
+    // MARK: View‑model
     @StateObject private var viewModel = ImageEditingViewModel()
 
     // MARK: UI state
     @State private var selectedOption: EnhancementOption?
     @State private var inputImage: UIImage?
     @State private var showingImagePicker = false
+    @State private var showingAvatarPicker = false            // NEW
     @State private var sliderPosition: CGFloat = 0.5
     @State private var showSlider = false
     @State private var showSaveSuccessAlert = false
@@ -800,10 +1072,15 @@ struct GenView: View {
     private var isGenerating: Bool { thumbs.contains { !$0.isOriginal && $0.isLoading } }
     private var hasThumbs: Bool { !thumbs.isEmpty }
     private var shouldShowPaywall: Bool {
-        !subscriptionManager.purchasedIdentifiers.contains("weeksub")
-        && thumbs.count >= 5
-        && thumbs.dropFirst().allSatisfy { !$0.isLoading }
+        !subscriptionManager.purchasedIdentifiers.contains("weeksub") &&
+        thumbs.count >= 5 &&
+        thumbs.dropFirst().allSatisfy { !$0.isLoading }
     }
+
+    // MARK: – Pre‑bundled avatars
+    private var builtInAvatars: [UIImage] = {
+        (1...10).compactMap { UIImage(named: String(format: "Persona%02d", $0)) }
+    }()
 
     // MARK: Body ----------------------------------------------------------------
     var body: some View {
@@ -818,6 +1095,7 @@ struct GenView: View {
                     showSlider: $showSlider,
                     onAddTap: handleReplacePhoto,
                     onReplaceTap: handleReplacePhoto,
+                    onAvatarTap: { showingAvatarPicker = true }, // NEW
                     onSaveTap: saveImage
                 )
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -856,7 +1134,31 @@ struct GenView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .overlay {
+        .overlay { overlayGenerating }
+        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
+            ImagePicker(image: $inputImage)
+        }
+        .sheet(isPresented: $showingAvatarPicker) {
+            AvatarPickerView(
+                avatars: builtInAvatars,
+                onSelect: { ui in
+                    inputImage = ui
+                    loadImage()
+                    showingAvatarPicker = false
+                },
+                onCancel: { showingAvatarPicker = false }
+            )
+        }
+        .alert("Saved", isPresented: $showSaveSuccessAlert) {
+            Button("OK", role: .cancel) { }
+        } message: { Text("Image saved to Photos") }
+        .onChange(of: shouldShowPaywall) { if $0 { showPaywallModal = true } }
+        .fullScreenCover(isPresented: $showPaywallModal) { paywall }
+    }
+
+    // MARK: – Sub‑views
+    private var overlayGenerating: some View {
+        Group {
             if isGenerating {
                 Color.black.opacity(0.35).ignoresSafeArea()
                 ProgressView()
@@ -864,24 +1166,18 @@ struct GenView: View {
                     .scaleEffect(2)
             }
         }
-        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
-            ImagePicker(image: $inputImage)
-        }
-        .alert("Saved", isPresented: $showSaveSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: { Text("Image saved to Photos") }
-        .onChange(of: shouldShowPaywall) { if $0 { showPaywallModal = true } }
-        .fullScreenCover(isPresented: $showPaywallModal) {
-            WeeklyPaywallView(
-                thumbs: thumbs,
-                onUnlock: { showPaywallModal = false },
-                onClose: {
-                    showPaywallModal = false
-                    dismiss()
-                }
-            )
-            .environmentObject(subscriptionManager)
-        }
+    }
+
+    private var paywall: some View {
+        WeeklyPaywallView(
+            thumbs: thumbs,
+            onUnlock: { showPaywallModal = false },
+            onClose: {
+                showPaywallModal = false
+                dismiss()
+            }
+        )
+        .environmentObject(subscriptionManager)
     }
 
     // MARK: Helpers ------------------------------------------------------------
@@ -894,38 +1190,68 @@ struct GenView: View {
 
     // MARK: Generation ----------------------------------------------------------
     private func beginParallelGeneration() {
-        guard let base = inputImage, let prompt = selectedOption?.prompt else { return }
-        thumbs = [ThumbItem(id: -1, image: base, isLoading: false)] +
-                 (0..<4).map { ThumbItem(id: $0, isLoading: true) }
-        currentIdx = 1
-        Task.detached(priority: .userInitiated) {
-            await withTaskGroup(of: (Int, UIImage?).self) { group in
-                for idx in 0..<4 {
-                    group.addTask { (idx, await ImageEditingWorker.generate(input: base, prompt: prompt)) }
-                }
-                for await (idx, img) in group {
-                    await MainActor.run {
-                        thumbs[idx + 1].image = img
-                        thumbs[idx + 1].isLoading = false
+        guard let base = inputImage,
+              let prompt = selectedOption?.prompt else { return }
+
+        // 1️⃣  Free quota *still* available OR user is subscribed
+        if subscriptionManager.canGenerate {
+            thumbs = [ThumbItem(id: -1, image: base)] +
+                     (0..<6).map { ThumbItem(id: $0, isLoading: true) }
+            currentIdx = 1
+            
+            Task.detached(priority: .userInitiated) {
+                await withTaskGroup(of: (Int, UIImage?).self) { group in
+                    for idx in 0..<6 {
+                        group.addTask {
+                            (idx, await ImageEditingWorker.generate(
+                                       input: base, prompt: prompt))
+                        }
+                    }
+                    for await (idx, img) in group {
+                        await MainActor.run {
+                            thumbs[idx + 1].image    = img
+                            thumbs[idx + 1].isLoading = false
+                        }
                     }
                 }
+                // ⬇️ count this run *only* for free users
+                await MainActor.run {
+                    subscriptionManager.markGenerationUsed()
+                }
             }
+            return
         }
+
+        // 2️⃣  Free quota exhausted – show progressively blurred copy, no API call
+        let previous  = mainDisplayedImage ?? base
+        let radius    = pow(2.0,
+                            Double(subscriptionManager.freeGenerationsUsed)) * 5
+        guard let blurred = previous.blurred(radius: radius) else { return }
+
+        thumbs      = [ThumbItem(id: -1, image: base),
+                       ThumbItem(id: 0, image: blurred)]
+        currentIdx  = 1
+        // bump counter so next tap doubles the blur again
+        subscriptionManager.markGenerationUsed()
     }
+
 
     // MARK: UI actions ---------------------------------------------------------
     private func handleReplacePhoto() { showingImagePicker = true }
+
     private func loadImage() {
         guard let img = inputImage else { return }
         viewModel.editedImage = img
         thumbs.removeAll()
         currentIdx = nil
     }
+
     private func saveImage() {
         guard let img = mainDisplayedImage else { return }
         UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
         showSaveSuccessAlert = true
     }
+
     private func shareImage() {
         guard let img = mainDisplayedImage else { return }
         let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
@@ -949,20 +1275,39 @@ struct GenView: View {
         case "Legs":     return BodyEnhancementPrompts.leg
         case "jewellery":return BodyEnhancementPrompts.jewellery
         case "Eyewear":  return BodyEnhancementPrompts.eyewear
-        default:          return []
+        
+        // 🔑 Fallback for any free‑text prompt coming from the horizontal panel
+        default:
+            return [
+                EnhancementOption(
+                    id: "custom",
+                    title: "Apply",     // label on the pill
+                    subtitle: nil,
+                    prompt: section,    // the full sentence prompt
+                    isFree: true)
+            ]
         }
     }
 }
 
- struct ThumbnailsStrip: View {
+struct ThumbnailsStrip: View {
+    // MARK: – Inputs
     let thumbs: [ThumbItem]
     let onSelect: (Int) -> Void
     let onRetry: () -> Void
+    
+    // MARK: – Layout constants
+    private let thumbWidth:  CGFloat = 91   // 70 pt × 1.3
+    private let thumbHeight: CGFloat = 118  // 70 pt × 1.3 (portrait)
+    
+    // MARK: – Derived
     var isGenerating: Bool { thumbs.contains { !$0.isOriginal && $0.isLoading } }
-
+    
+    // MARK: – Body ------------------------------------------------------------
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
+                // thumbnails --------------------------------------------------
                 ForEach(thumbs) { thumb in
                     ZStack {
                         // image or placeholder
@@ -975,17 +1320,17 @@ struct GenView: View {
                                 Color.gray.opacity(0.3)
                             }
                         }
-                        .frame(width: 70, height: 70)
+                        .frame(width: thumbWidth, height: thumbHeight)
                         .clipped()
-                        .cornerRadius(12)
-
-                        // centered spinner
+                        .cornerRadius(14)
+                        
+                        // spinner
                         if thumb.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         }
-
-                        // bottom “ORIGINAL” badge
+                        
+                        // “ORIGINAL” badge
                         if thumb.isOriginal {
                             VStack {
                                 Spacer()
@@ -998,11 +1343,11 @@ struct GenView: View {
                             }
                         }
                     }
-                    .frame(width: 70, height: 70)
+                    .frame(width: thumbWidth, height: thumbHeight)
                     .onTapGesture { onSelect(thumb.id == -1 ? 0 : thumb.id + 1) }
                 }
-
-                // retry button…
+                
+                // retry button ------------------------------------------------
                 Button(action: onRetry) {
                     ZStack {
                         Color.black.opacity(0.6)
@@ -1010,20 +1355,20 @@ struct GenView: View {
                             .font(.title3.weight(.semibold))
                             .foregroundColor(.white)
                     }
-                    .frame(width: 70, height: 70)
-                    .cornerRadius(12)
-                    .overlay(isGenerating ? Color.black.opacity(0.4).cornerRadius(12) : nil)
+                    .frame(width: thumbWidth, height: thumbHeight)
+                    .cornerRadius(14)
+                    .overlay(isGenerating ? Color.black.opacity(0.4).cornerRadius(14) : nil)
                 }
                 .disabled(isGenerating)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
+        .frame(height: thumbHeight + 16)      // keeps the strip’s height tight
         .background(.ultraThinMaterial)
         .cornerRadius(16)
     }
 }
-
 
 private struct TopButtons: View {
     let onBack, onReplace, onShare, onSave: () -> Void
@@ -1052,10 +1397,212 @@ private struct CircleIcon: ViewModifier {
             .clipShape(Circle())
     }
 }
+
+// UIImage+Blur.swift
+import UIKit
+import CoreImage
+import CoreImage.CIFilterBuiltins   // ← ADD THIS LINE
+
+extension UIImage {
+    func blurred(radius: Double) -> UIImage? {
+        guard let cg = cgImage else { return nil }
+
+        let ciImg  = CIImage(cgImage: cg)
+        let filter = CIFilter.gaussianBlur()   // now resolves correctly
+        filter.inputImage = ciImg
+        filter.radius     = Float(radius)      // property is Float, so cast
+
+        guard let out = filter.outputImage else { return nil }
+        let ctx  = CIContext()
+        guard let cgOut = ctx.createCGImage(out, from: ciImg.extent) else { return nil }
+        return UIImage(cgImage: cgOut)
+    }
+}
 import SwiftUI
 
 struct CatalogView: View {
-    // MARK: — Data
+    // MARK: — Prompt definitions shown in the horizontal panel
+    private let promptItems: [PromptItem] = [
+        
+        .init(name: "🗑️ Remove Objects",
+              prompt: "Erase unwanted objects or people from the background and intelligently rebuild the missing scenery for a spotless shot"),
+
+        .init(name: "👔 Professional Photo",
+              prompt: "respectfully make the photo look more professional, like a corporate portrait with neutral backdrop, balanced lighting, and crisp details, keep the face details and photo composition the same"),
+
+        .init(name: "🏖️ Body Tuner",
+              prompt: "Refine waistline, smooth skin, and subtly enhance posture for a confident, natural swimsuit silhouette"),
+
+        .init(name: "🐻 Wild Hug",
+              prompt: "Composite the subject embracing a photorealistic wild animal—matching lighting and shadows for a seamless, share-worthy moment"),
+
+        .init(name: "🤵‍♂️ Classy Seaside",
+              prompt: "Reimagine the portrait on Italy’s sun-soaked coast with Bond-style elegance: turquoise sea, retro speedboat, and golden light"),
+
+        .init(name: "🛠️ Fix Bad Photo",
+              prompt: "Rescue blurry, dark, or pixelated shots by sharpening details, balancing exposure, and reviving true-to-life colours"),
+
+        .init(name: "💇‍♀️ Volume & Style",
+              prompt: "Respectfully enhance the natural hair volume for a salon-perfect finish"),
+
+        .init(name: "😁 Smile Boost",
+              prompt: "Gently lift lip corners, brighten teeth, and align facial harmony to create a natural, confident smile"),
+
+        .init(name: "📱 Phone Removal",
+              prompt: "remove the smartphone from the image, make the pose natural, and add a subtle background, enhance the smile"),
+
+        
+        .init(name: "🌅 Golden-Hour Glow",
+              prompt: "Infuse the scene with gentle sunset warmth, adding soft highlights and a cinematic amber tint"),
+        .init(name: "💡 Fairy-Light Bokeh",
+              prompt: "Scatter dreamy string-light bokeh in the background while keeping the subject tack-sharp"),
+        .init(name: "📸 Mirror Selfie Cleanup",
+              prompt: "Erase smudges, fingerprints, and edge glare for a spotless mirror-selfie finish"),
+        .init(name: "🎞️ 35 mm Film Grain",
+              prompt: "Overlay fine analog grain and subtle color shifts for an authentic film-camera feel"),
+        .init(name: "🏠 Cozy Tone",
+              prompt: "Warm up shadows and mid-tones for a soft, homely ambience that flatters skin tones"),
+        .init(name: "📷 Depth Portrait",
+              prompt: "Simulate DSLR-style depth of field, blurring cluttered closets so the subject pops"),
+        .init(name: "🪞 Reflection Boost",
+              prompt: "Enhance mirror reflections and add subtle vignetting to frame the subject elegantly"),
+        .init(name: "🚪 Closet Fade",
+              prompt: "Desaturate and soften wardrobe colors in the background to reduce visual noise"),
+        .init(name: "🌬️ Soft-Breeze Hair",
+              prompt: "Introduce a gentle hair movement and airy lightness for a candid, in-motion effect"),
+        .init(name: "✨ Velvet Skin",
+              prompt: "Smooth complexion just enough to mimic natural evening light, retaining realistic texture"),
+
+        
+            .init(name: "📱 Story Frame 9:16",
+                  prompt: "Auto-crop to a perfect 9:16 ratio, extending blurred edges if needed so nothing important is lost"),
+            .init(name: "🤳 Arm-Length Perspective",
+                  prompt: "Correct wide-angle distortion from a front-camera lens for natural proportions and straighter lines"),
+            .init(name: "🔆 Window Light Boost",
+                  prompt: "Add soft, directional daylight from one side, creating gentle face highlights and clear catch-lights"),
+            .init(name: "💫 Vertical Lens Flare",
+                  prompt: "Overlay subtle golden flare streaks that run top-to-bottom to enhance back-lit selfies"),
+            .init(name: "➿ Spiral Focus",
+                  prompt: "Apply a delicate spiral blur emanating from corners to draw attention straight to the subject’s eyes"),
+            .init(name: "🎞️ Film Burn Edge",
+                  prompt: "Introduce warm, analog film-burn at the upper and lower edges for a retro story vibe"),
+            .init(name: "🌫️ Haze Fade",
+                  prompt: "Fade distant background elements with a soft vertical haze for extra depth and reduced clutter"),
+            .init(name: "🚶‍♀️ Body Highlight",
+                  prompt: "Add subtle rim lighting along the torso to flatter full-length mirror selfies and define shape"),
+            .init(name: "📏 Slim Stretch",
+                  prompt: "Gently elongate the canvas to add perceived height while preserving realistic body ratios"),
+            .init(name: "🎭 Mood DuoTone",
+                  prompt: "Blend two complementary warm tones from top to bottom, creating a stylish magazine-grade gradient"),
+
+        .init(name: "👩‍💼 CEO Hair",
+              prompt: "Give hair a sleek, power-professional style that’s perfect for LinkedIn headshots"),
+        .init(name: "🧜‍♀️ Mermaid Waves",
+              prompt: "Create soft mermaid-inspired waves with beachy texture—no heat needed"),
+        .init(name: "💖 Barbie Pink",
+              prompt: "Re-colour hair to a glossy, vibrant Barbie-pink while keeping strands defined"),
+        .init(name: "🎮 Anime Glam",
+              prompt: "Transform the photo into stylised anime art with cel-shaded hair and bright eyes"),
+        .init(name: "🌌 Galactic Ombré",
+              prompt: "Blend cosmic purples and blues into a seamless space-ombré gradient"),
+        .init(name: "🚀 Big-Hair Boost",
+              prompt: "Simulate a voluminous salon blow-out with maximum bounce and body"),
+        .init(name: "🪞 Glass Skin",
+              prompt: "Smooth and illuminate complexion for a pore-less glass-skin glow"),
+        .init(name: "🫧 Anti-Frizz",
+              prompt: "Erase frizz and flyaways for silky, perfectly polished strands"),
+        .init(name: "💜 Neon Streaks",
+              prompt: "Paint electrifying neon streaks through the hair for a cyber-punk vibe"),
+        .init(name: "🦸‍♀️ Action Figure",
+              prompt: "Render the subject as a hyper-detailed action figure with dramatic lighting"),
+        .init(name: "🚫 Ex Eraser",
+              prompt: "Remove an unwanted person from the shot while enhancing the remaining subject"),
+        .init(name: "📸 Bokeh Pop",
+              prompt: "Add creamy DSLR-style background bokeh so the subject pops instantly"),
+
+        
+        
+        
+        
+        
+        .init(name: "🧹 Remove Objects",
+              prompt: "Remove the unwanted objects from the background keeping the subject intact"),
+        .init(name: "🎨 Clear Background",
+              prompt: "Replace the background with a plain, neutral colour"),
+        .init(name: "🎞️ Blur Background",
+              prompt: "Blur the background softly to emphasise the subject"),
+        .init(name: "🌈 Vibrant Colours",
+              prompt: "Enhance all colours for a vivid, saturated look while preserving skin tones"),
+        .init(name: "🪄 Magic Retouch",
+              prompt: "Subtly smooth skin and reduce blemishes for a polished finish"),
+        .init(name: "✨ Highlight Pop",
+              prompt: "Increase highlights and contrast to make the subject stand out"),
+        .init(name: "🗑️ Object Eraser",
+                  prompt: "Erase distracting items while keeping the main subject crisp"),
+
+            // 2. Body tuning
+            .init(name: "🏋️‍♂️ Body Sculpt",
+                  prompt: "Subtly reshape and refine body contours for a balanced, natural look"),
+
+            // 3. Face retouch
+            .init(name: "💆‍♀️ Face Refine",
+                  prompt: "Smooth skin and adjust facial features while preserving authenticity"),
+
+            // 4. Teeth correction
+            .init(name: "😁 Bright Smile",
+                  prompt: "Whiten and perfect teeth for a confident, natural-looking grin"),
+
+            // 5. Background removal
+            .init(name: "✂️ Cut-Out",
+                  prompt: "Remove the background entirely, delivering a clean transparent PNG"),
+
+            // 6. Wrinkle removal
+            .init(name: "🧴 Smooth Lines",
+                  prompt: "Reduce wrinkles and fine lines for a refreshed appearance"),
+
+            // 7. AI weight loss
+            .init(name: "⚖️ Slim Fit",
+                  prompt: "Trim the silhouette realistically for a slimmer profile"),
+
+            // 8. AI Auto elegance
+            .init(name: "✨ Auto Elegance",
+                  prompt: "Automatically balance tone, lighting, and colour for an upscale finish"),
+
+            // 9. AI Hair – haircut, colouring, restoration
+            .init(name: "💇‍♀️ Hair Studio",
+                  prompt: "Preview new haircuts, colours, or fuller volume with lifelike results"),
+
+            // 10. HD Portrait
+            .init(name: "📸 HD Portrait",
+                  prompt: "Enhance portrait clarity and detail to high-definition quality"),
+
+            // 11. One-touch makeup
+            .init(name: "💄 Insta Makeup",
+                  prompt: "Apply natural-looking makeup instantly, matched to skin tone"),
+
+            // 12. 3D beauty
+            .init(name: "🌀 3D Glam",
+                  prompt: "Add subtle depth and contour for a dimensional beauty effect"),
+
+            // 13. Hi-res
+            .init(name: "🔍 Upscale 4K",
+                  prompt: "Increase resolution up to 4K while preserving sharpness and detail"),
+
+            // 14. Hair volumes
+            .init(name: "🌟 Volume Boost",
+                  prompt: "Add fullness and body to hair for a luxuriously voluminous style"),
+
+            // 15. Beauty filters
+            .init(name: "🎞️ Beauty Film",
+                  prompt: "Apply a soft cinematic filter for an instant glow"),
+
+            // 16. Face tools
+            .init(name: "🛠️ Face Toolkit",
+                  prompt: "Precisely adjust eyes, nose, lips and more with intuitive sliders")
+
+    ]
+
+    // MARK: — Data for grid sections
     private let bodyShapeItems: [(title: String, icon: String)] = [
         ("Chest Curve",   "Chest"),
         ("Flat Abs",      "Belly"),
@@ -1089,21 +1636,25 @@ struct CatalogView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
-
                     // MARK: — Header
                     HStack {
                         Text("BodyEditor Ai")
-                            .font(.largeTitle).fontWeight(.bold)
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
                             .foregroundStyle(
                                 LinearGradient(
                                     gradient: Gradient(colors: [Color.pink, Color.orange]),
-                                    startPoint: .center,
+                                    startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                         Spacer()
                     }
                     .padding(.horizontal)
+
+                    // MARK: — Prompt Panel
+                    HorizontalPromptScroll(items: promptItems)
+                        .padding(.top, 4)
 
                     // MARK: — Body Shape Section
                     SectionGrid(
@@ -1134,6 +1685,7 @@ struct CatalogView: View {
     }
 }
 
+// MARK: — Section Grid (unchanged)
 private struct SectionGrid: View {
     let title: String
     let items: [(title: String, icon: String)]
@@ -1147,7 +1699,7 @@ private struct SectionGrid: View {
                 .padding(.horizontal)
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                ForEach(items, id: \.title) { item in
+                ForEach(items, id: \ .title) { item in
                     NavigationLink(
                         destination: GenView(section: item.icon)
                     ) {
@@ -1167,7 +1719,7 @@ private struct SectionGrid: View {
                                     .aspectRatio(contentMode: .fit)
                                     .frame(width: 50, height: 50)
                             }
-                            
+
                             Text(item.title)
                                 .font(.caption)
                                 .multilineTextAlignment(.center)
@@ -1189,207 +1741,284 @@ struct CatalogView_Previews: PreviewProvider {
     }
 }
 import SwiftUI
+
+// MARK: - Prompt model --------------------------------------------------------
+struct PromptItem: Identifiable {
+    let id = UUID()
+    let name: String    // Emoji‑prefixed label shown in the pill
+    let prompt: String  // Full prompt passed to GenView
+}
+
+// MARK: - Two‑row, horizontally scrolling prompt panel -----------------------
+struct HorizontalPromptScroll: View {
+    let items: [PromptItem]
+
+    // Two fixed‑height rows stacked vertically inside a horizontally scrolling grid
+    private let rows = [
+        GridItem(.fixed(48), spacing: 12),
+        GridItem(.fixed(48))
+    ]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHGrid(rows: rows, alignment: .center, spacing: 16) {
+                ForEach(items) { item in
+                    NavigationLink(destination: GenView(section: item.prompt)) {
+                        PromptTag(text: item.name)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(Color.clear)
+    }
+}
+
+// MARK: - Single prompt pill --------------------------------------------------
+private struct PromptTag: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(.white)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color.black.opacity(0.55))
+            )
+    }
+}
+//
+//  WeeklyPaywallView.swift
+//  HairStyle
+//
+
+import SwiftUI
 import StoreKit
 
 struct WeeklyPaywallView: View {
-    @EnvironmentObject var subscriptionManager: SubscriptionManager
-    let thumbs: [ThumbItem]
+    
+    // MARK: – Dependencies
+    @EnvironmentObject private var manager: SubscriptionManager
+    
+    // MARK: – Inputs
+    var thumbs: [ThumbItem] = []            // OPTIONAL – default empty
     let onUnlock: () -> Void
-    let onClose: () -> Void
-
+    let onClose:  () -> Void
+    
+    // MARK: – Local state
     @State private var closeDisabled = true
-    @State private var currentPage = 0
-    // 👇 new state for the bounce
-    @State private var bounceOffset: CGFloat = 0
-    @State private var hasBounced   = false     // ensures it fires only once
-    // 🔸 NEW: scale for the Unlock button pulse
-    @State private var buttonScale: CGFloat = 1.0
-
+    @State private var currentPage   = 0
+    @State private var bounceOffset: CGFloat  = 0
+    @State private var hasBounced    = false
+    @State private var buttonScale:  CGFloat  = 1
+    
+    // MARK: – Derived
     private var weeklyProduct: Product? {
-        subscriptionManager.subscriptions.first { $0.id == "weeksub" }
+        manager.subscriptions.first { $0.id == "weeksub" }
     }
     private var imageSize: CGFloat { UIScreen.main.bounds.width * 0.7 }
-
+    
+    // MARK: – Body
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // MARK: — Background Gradient
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red:1, green:0.95, blue:0.96),
-                    Color(red:1, green:0.87, blue:0.90)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            background
+            closeButton
+            content
+        }
+        .onAppear(perform: configureAnimations)
+    }
+}
 
-            // MARK: — Close Button
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.black)
-                    .opacity(closeDisabled ? 0.3 : 0.6)
-                    .padding(24)
-            }
-            .disabled(closeDisabled)
-            .contentShape(Rectangle())
-            .zIndex(1)
+// MARK: - Sub-views
+private extension WeeklyPaywallView {
+    
+    var background: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 1, green: 0.95, blue: 0.96),
+                Color(red: 1, green: 0.87, blue: 0.90)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+    }
+    
+    var closeButton: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.black)
+                .opacity(closeDisabled ? 0.3 : 0.6)
+                .padding(24)
+        }
+        .disabled(closeDisabled)
+    }
+    
+    var content: some View {
+        VStack(spacing: 24) {
+            Spacer().frame(height: 60)
+            
+            // MARK: — Headline (no truncation)
+            Text("GET YOUR DREAM APPEARANCE!")
+                .font(.largeTitle).bold()
+                .foregroundColor(.black)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
-            VStack(spacing: 24) {
-                Spacer().frame(height: 60)
-
-                // MARK: — Headline (no truncation)
-                Text("GET YOUR DREAM APPEARANCE!")
-                    .font(.largeTitle).bold()
-                    .foregroundColor(.black)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("Proven to help you transform your beauty routine.")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 32)
-
-                // MARK: — Carousel & Dots
-                Text("Reveal what you'll look like 👀")
-                    .font(.headline)
-                    .foregroundColor(.black)
-
-                TabView(selection: $currentPage) {
-                    ForEach(thumbs.indices, id: \.self) { idx in
-                        if let ui = thumbs[idx].image {
-                            Image(uiImage: ui)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: imageSize, height: imageSize)
-                                .blur(radius: 6)
-                                .mask(RoundedRectangle(cornerRadius: 16))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.white.opacity(0.6), lineWidth: 4)
-                                )
-                                .tag(idx)
-                                .offset(x: idx == 0 ? bounceOffset : 0)
-                        }
-                    }
-                }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .frame(height: imageSize)
-
-                HStack(spacing: 8) {
-                    ForEach(0..<thumbs.count, id: \.self) { dot in
-                        Circle()
-                            .frame(width: 8, height: 8)
-                            .foregroundColor(dot == currentPage ? .black : .gray)
-                    }
-                }
-
-                Text("1,000,000+ beauty upgrades created")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-
-                // MARK: — Unlock Button (white pill)
-                Button(action: purchaseWeekly) {
-                    Text("Unlock Now")
-                        .font(.title3).bold()
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.white)
-                        .cornerRadius(30)
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                }
-                .padding(.horizontal, 32)
-                .disabled(weeklyProduct == nil)
-                .scaleEffect(buttonScale)
-                
-                // MARK: — Renewal Info
-                (Text("Renews Weekly at ")
-                 + Text(weeklyProduct?.displayPrice ?? "–")
-                        .bold()
-                        .foregroundColor(.black)      // price only → black
-                )
-                .font(.callout)
+            Text("Proven to help you transform your beauty routine.")
+                .font(.subheadline)
                 .foregroundColor(.gray)
-
-                Spacer()
-
-                // MARK: — Footer Links
-                HStack {
-                    Button("Terms of Use")     { openURL("https://active-outcome.vercel.app/beautyCam") }
-                    Spacer()
-                    Button("Restore Purchase"){ Task { await restore() } }
-                    Spacer()
-                    Button("Privacy Policy")   { openURL("https://active-outcome.vercel.app/beautyCam") }
-                }
-                .font(.footnote)
-                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 32)
 
-                Spacer().frame(height: 20)
+            // MARK: — Carousel & Dots
+            Text("Reveal what you'll look like 👀")
+                .font(.headline)
+                .foregroundColor(.black)
+            
+            if !thumbs.isEmpty { carouselSection }
+            
+            Text("1,000,000+ beauty upgrades created")
+                .font(.caption)
+                .foregroundColor(.gray)
+            
+            unlockButton
+                .padding(.horizontal, 32)
+            
+            renewalInfo
+            
+            Spacer()
+            
+            footer
+                .padding(.horizontal, 32)
+            
+            Spacer(minLength: 20)
+        }
+    }
+    
+    // ---------- optional carousel ----------
+    @ViewBuilder
+    var carouselSection: some View {
+        
+        TabView(selection: $currentPage) {
+            ForEach(thumbs.indices, id: \.self) { idx in
+                if let ui = thumbs[idx].image {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: imageSize, height: imageSize)
+                        .blur(radius: 6.5)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.6), lineWidth: 4)
+                        )
+                        .offset(x: idx == 0 ? bounceOffset : 0)
+                        .tag(idx)
+                }
             }
         }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 9) {
-                withAnimation { closeDisabled = false }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: imageSize)
+        
+        HStack(spacing: 8) {
+            ForEach(0..<thumbs.count, id: \.self) { d in
+                Circle()
+                    .frame(width: 8, height: 8)
+                    .foregroundColor(d == currentPage ? .black : .gray)
             }
-            
-            // 👉 schedule a single left-nudge bounce after 0.8 s
-            guard !hasBounced else { return }
+        }
+    }
+    
+    // ---------- CTA ----------
+    var unlockButton: some View {
+        Button(action: purchase) {
+            Text("Unlock Now")
+                .font(.title3.bold())
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.white)
+                .cornerRadius(30)
+                .foregroundColor(.black)              // always black
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+        }
+        .disabled(weeklyProduct == nil)
+        .scaleEffect(buttonScale)
+    }
+    
+    var renewalInfo: some View {
+        (Text("Renews Weekly at ")
+         + Text(weeklyProduct?.displayPrice ?? "–")
+            .bold()
+            .foregroundColor(.black))
+        .font(.callout)
+        .foregroundColor(.gray)
+    }
+    
+    var footer: some View {
+        HStack {
+            Button("Terms of Use") { openURL("https://active-outcome.vercel.app/beautyCam") }
+            Spacer()
+            Button("Restore Purchase") { Task { await restore() } }
+            Spacer()
+            Button("Privacy Policy") { openURL("https://active-outcome.vercel.app/beautyCam") }
+        }
+        .font(.footnote)
+        .foregroundColor(.gray)
+    }
+}
+
+// MARK: - Logic
+private extension WeeklyPaywallView {
+    
+    func configureAnimations() {
+        // unlock × after 9 s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 9) {
+            withAnimation { closeDisabled = false }
+        }
+        
+        // carousel nudge
+        if !thumbs.isEmpty && !hasBounced {
             hasBounced = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                withAnimation(.easeInOut(duration: 0.28)) {
-                    bounceOffset = -16          // nudge left ≈ thumb-width cue
-                }
-                // spring back
+                withAnimation(.easeInOut(duration: 0.28)) { bounceOffset = -16 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                    withAnimation(.interpolatingSpring(stiffness: 220, damping: 18)) {
-                        bounceOffset = 0
-                    }
-                }
-            }
-            
-            
-            // 🔸 schedule the Unlock-button pulse 5 s after appear
-            DispatchQueue.main.asyncAfter(deadline: .now() + 7) {
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    buttonScale = 1.1            // grow ~8 %
-                }
-                // snap back
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    withAnimation(.easeInOut(duration: 0.4)) {
-                        buttonScale = 1.0
-                    }
+                    withAnimation(.interpolatingSpring(stiffness: 220, damping: 18)) { bounceOffset = 0 }
                 }
             }
         }
         
+        // CTA pulse
+        DispatchQueue.main.asyncAfter(deadline: .now() + 7) {
+            withAnimation(.easeInOut(duration: 0.4)) { buttonScale = 1.1 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                withAnimation(.easeInOut(duration: 0.4)) { buttonScale = 1.0 }
+            }
+        }
     }
-
-    private func purchaseWeekly() {
+    
+    func purchase() {
         guard let p = weeklyProduct else { return }
         Task {
-            if (try? await subscriptionManager.purchase(p)) != nil {
-                onUnlock()
-            }
+            if (try? await manager.purchase(p)) != nil { onUnlock() }
         }
     }
-
-    private func restore() async {
-        for await verification in Transaction.currentEntitlements {
-            if case .verified(let t) = verification, t.productID == "weeksub" {
-                onUnlock()
-                break
-            }
+    
+    func restore() async {
+        for await v in Transaction.currentEntitlements {
+            if case let .verified(t) = v, t.productID == "weeksub" { onUnlock(); break }
         }
     }
-
-    private func openURL(_ s: String) {
-        if let url = URL(string: s) {
-            UIApplication.shared.open(url)
-        }
+    
+    func openURL(_ s: String) {
+        guard let url = URL(string: s) else { return }
+        UIApplication.shared.open(url)
     }
 }
 import SwiftUI
@@ -1405,33 +2034,33 @@ struct OnboardingView: View {
 
     var body: some View {
         TabView(selection: $currentPage) {
-            // Page 1: Benefit 1
+            // Page 1: Review Prompt (moved to first)
+            ReviewPromptPageView(onContinue: { currentPage = 1 })
+                .tag(0)
+            
+            // Page 2: Benefit 1
             OnboardingPageView(imageName: "star.fill",
                                title: "Amazing Features",
                                description: "Discover advanced AI editing to bring out your best self.",
-                               onContinue: { currentPage = 1 })
-                .tag(0)
-            
-            // Page 2: Benefit 2
-            OnboardingPageView(imageName: "sparkles",
-                               title: "Effortless Beauty",
-                               description: "Instantly enhance your selfies with just a tap.",
                                onContinue: { currentPage = 2 })
                 .tag(1)
             
-            // Page 3: Benefit 3
-            OnboardingPageView(imageName: "heart.fill",
-                               title: "Share Your Style",
-                               description: "Create stunning images and share your unique look with friends.",
+            // Page 3: Benefit 2
+            OnboardingPageView(imageName: "sparkles",
+                               title: "Effortless Beauty",
+                               description: "Instantly enhance your selfies with just a tap.",
                                onContinue: { currentPage = 3 })
                 .tag(2)
             
-            // Page 4: Photo Library Permission
-            PhotoLibraryPermissionPageView(onContinue: { currentPage = 4 })
+            // Page 4: Benefit 3
+            OnboardingPageView(imageName: "heart.fill",
+                               title: "Share Your Style",
+                               description: "Create stunning images and share your unique look with friends.",
+                               onContinue: { currentPage = 4 })
                 .tag(3)
             
-            // Page 5: Review Prompt
-            ReviewPromptPageView(onContinue: { currentPage = 5 })
+            // Page 5: Photo Library Permission
+            PhotoLibraryPermissionPageView(onContinue: { currentPage = 5 })
                 .tag(4)
             
             // Page 6: Paywall
@@ -1577,197 +2206,310 @@ struct ReviewPromptPageView: View {
 //  PaywallPageView.swift
 //  HairStyle
 //
-//  Created by adam on 25/03/2025.
-//
-
 
 import SwiftUI
 import StoreKit
 
 struct PaywallPageView: View {
-    /// We get the subscription manager from the environment
-    @EnvironmentObject var subscriptionManager: SubscriptionManager
-    
-    /// This is your old @AppStorage property that indicates premium status
+
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Binding var isPremium: Bool
-    
-    /// Called when user finishes this screen (either purchase or “Not Now”)
     let onComplete: () -> Void
-    
+
+    @State private var buttonScale: CGFloat = 1
+    @State private var notNowLocked     = true
+
+    // Detect iPad once, reuse
+    private let isPad = UIDevice.current.userInterfaceIdiom == .pad
+
+    // MARK: – StoreKit
+    private var weeklyProduct: Product? {
+        subscriptionManager.subscriptions.first { $0.id == "weeksub" }
+        ?? subscriptionManager.subscriptions.first
+    }
+
+    // MARK: – Copy
+    private let perks: [(String,String)] = [
+        ("🤳", "AI Photo Retake – perfect every snap"),
+        ("🔥", "Body Tuner for true confidence"),
+        ("✨", "Instant Skin Retouch & Glow"),
+        ("🧽", "Erase unwanted objects"),
+        ("💎", "4 K HD exports, watermark-free")
+    ]
+
+    // MARK: – Body
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Text("Upgrade to Premium")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            Text("Unlock unlimited image edits. Choose your plan below:")
-                .font(.title3)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            if subscriptionManager.subscriptions.isEmpty {
-                // If the products haven't loaded yet, show a spinner
-                ProgressView("Loading subscriptions...")
-                    .padding()
-            } else {
-                // Show each subscription product
-                ForEach(subscriptionManager.subscriptions) { product in
-                    Button {
-                        Task {
-                            do {
-                                // Attempt to purchase
-                                let transaction = try await subscriptionManager.purchase(product)
-                                if transaction != nil {
-                                    // Purchase successful
-                                    isPremium = true
-                                    onComplete()
-                                }
-                            } catch {
-                                print("Purchase failed: \(error)")
-                            }
-                        }
-                    } label: {
-                        // Display the product’s name and price from StoreKit
-                        Text("\(product.displayName) – \(product.displayPrice)")
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue)
-                            .cornerRadius(8)
+        ZStack {
+            // ─── Background (darker on iPad) ─────────────────
+            LinearGradient(
+                colors: isPad
+                    ? [Color(red:0.90,green:0.55,blue:0.65),
+                       Color(red:0.82,green:0.35,blue:0.52)]
+                    : [Color(red:1,green:0.95,blue:0.96),
+                       Color(red:1,green:0.87,blue:0.90)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            // ─── Main stack ─────────────────────────────────
+            VStack(spacing: isPad ? 40 : 28) {
+
+                Spacer().frame(height: isPad ? 120 : 72)
+
+                // Headline
+                Text("Unlock Your Best Look\nToday")
+                    .font(isPad ? .system(size:50, weight:.heavy)
+                                 : .largeTitle.bold())
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+
+                // Perks card
+                VStack(alignment:.leading, spacing:isPad ? 18 : 12) {
+                    ForEach(perks, id:\.1) { em, txt in
+                        HStack(spacing:12) { Text(em); Text(txt) }
                     }
-                    .padding(.horizontal)
                 }
+                .font(isPad ? .title3.weight(.semibold)
+                            : .callout.weight(.semibold))
+                .foregroundColor(.white)
+                .padding(isPad ? 30 : 20)
+                .background(.black.opacity(0.3))
+                .cornerRadius(24)
+                .frame(maxWidth: isPad ? 520 : .infinity)
+                .padding(.horizontal,isPad ? 0 : 32)
+
+                // Free-trial badge
+                Text("3-Day **FREE** Trial – cancel anytime")
+                    .font(isPad ? .callout.weight(.medium) : .footnote.weight(.medium))
+                    .foregroundColor(.white.opacity(0.9))
+                    .padding(.horizontal,24)
+                    .padding(.vertical,8)
+                    .background(Color.white.opacity(0.18))
+                    .cornerRadius(16)
+
+                Spacer()
+
+                // Bottom panel
+                bottomPanel
+                    .frame(maxWidth: isPad ? 600 : .infinity)
+                    .padding(.horizontal,isPad ? 0 : 32)
+                    .padding(.bottom,isPad ? 60 : 40)
             }
-            
-            Button(action: {
-                // "Not Now" – continue as freemium (limited to 3 generations)
-                onComplete()
-            }) {
-                Text("Not Now")
-                    .underline()
-                    .foregroundColor(.gray)
-            }
-            Button(action: {
-                if let url = URL(string: "https://example.com/terms") {
-                    UIApplication.shared.open(url)
-                }
-            }) {
-                Text("Terms of Service")
-                    .underline()
-                    .foregroundColor(.blue)
-            }
-            Spacer()
         }
-        .padding(.horizontal)
+        .onAppear {
+            schedulePulse()
+            DispatchQueue.main.asyncAfter(deadline: .now()+8) {
+                withAnimation { notNowLocked = false }
+            }
+        }
+    }
+}
+
+// MARK: – Bottom panel
+private extension PaywallPageView {
+
+    var bottomPanel: some View {
+        VStack(spacing:isPad ? 22 : 16) {
+
+            // CTA
+            Button(action: purchase) {
+                Text("Start Free Trial")
+                    .font(isPad ? .title3.weight(.semibold) : .headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth:.infinity)
+                    .frame(height:isPad ? 56 : 48)
+            }
+            .buttonStyle(.plain)
+            .background(.ultraThinMaterial)
+            .cornerRadius(isPad ? 28 : 24)
+            .shadow(color:.black.opacity(0.3), radius:10, y:5)
+            .disabled(weeklyProduct == nil)
+            .scaleEffect(buttonScale)
+
+            // Renewal price
+            if let price = weeklyProduct?.displayPrice {
+                (Text("Then ") + Text(price).bold() + Text(" / week, cancel anytime"))
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.9))
+            }
+
+            // Links
+            HStack {
+                Button("Terms")   { openURL("https://example.com/terms") }
+                Spacer()
+                Button("Restore") { Task { await restore() } }
+                Spacer()
+                Button("Privacy") { openURL("https://example.com/privacy") }
+            }
+            .font(.footnote)
+            .foregroundColor(.white.opacity(0.85))
+
+            // Not-now
+            Button("Not Now", action: onComplete)
+                .font(.footnote)
+                .foregroundColor(.white)
+                .opacity(notNowLocked ? 0.3 : 1)
+                .disabled(notNowLocked)
+        }
+        .padding(isPad ? 28 : 20)
+        .background(.regularMaterial)          // stronger blur on iPad
+        .cornerRadius(isPad ? 32 : 28)
+        .shadow(color:.black.opacity(0.35), radius:14, y:6)
+    }
+}
+
+// MARK: – Logic
+private extension PaywallPageView {
+
+    func schedulePulse() {
+        DispatchQueue.main.asyncAfter(deadline:.now()+7) {
+            withAnimation(.easeInOut(duration:0.4)) { buttonScale = 1.1 }
+            DispatchQueue.main.asyncAfter(deadline:.now()+0.4) {
+                withAnimation(.easeInOut(duration:0.4)) { buttonScale = 1.0 }
+            }
+        }
+    }
+
+    func purchase() {
+        guard let product = weeklyProduct else { return }
+        Task {
+            if let _ = try? await subscriptionManager.purchase(product) {
+                isPremium = true
+                onComplete()
+            }
+        }
+    }
+
+    func restore() async {
+        for await ent in Transaction.currentEntitlements {
+            if case let .verified(t) = ent, t.productID == weeklyProduct?.id {
+                isPremium = true
+                onComplete()
+                break
+            }
+        }
+    }
+
+    func openURL(_ s:String) {
+        guard let url = URL(string:s) else { return }
+        UIApplication.shared.open(url)
     }
 }
 //
 //  SubscriptionManager.swift
 //  HairStyle
 //
-//  Created by adam on 25/03/2025.
-//
-
 
 import StoreKit
 import SwiftUI
 
 @MainActor
-class SubscriptionManager: ObservableObject {
-    /// The subscription products fetched from StoreKit configuration
-    @Published var subscriptions: [Product] = []
+final class SubscriptionManager: ObservableObject {
     
-    /// Keep track of purchased product identifiers
-    @Published var purchasedIdentifiers = Set<String>()
+    // MARK:  Published
+    @Published var subscriptions: [Product]          = []
+    @Published var purchasedIdentifiers: Set<String> = []
     
-    /// Task to listen for any subscription updates
-    private var updates: Task<Void, Never>?
+    /// Optional thumbnails the paywall can show on first launch.
+    /// `ThumbItem` is already declared in **GenView.swift**, so we just
+    /// reference it here—no second definition!
+    let previewThumbs: [ThumbItem] = []          // ← keep empty or fill later
     
-    /// Define your product IDs exactly as they appear in your StoreKit config
-    private let productIDs = [
-        "weeksub"
-    ]
+    // 👇 NEW – counter for free users (persists in UserDefaults)
+    @Published private(set) var freeGenerationsUsed: Int {
+        didSet { UserDefaults.standard.set(freeGenerationsUsed,
+                                           forKey: "freeGenerationsUsed") }
+    }
+    let freeGenerationLimit = 1          // change here if you want 2, 3, …
+
     
+    // MARK:  Private
+    private let productIDs = ["weeksub"]
+    private var updateTask: Task<Void, Never>?
+    
+    
+    // MARK:  Init -------------------------------------------------------------
     init() {
-        // Start listening for transaction updates
-        updates = listenForTransactions()
+        // NEW – restore counter before anything else
+        freeGenerationsUsed = UserDefaults.standard
+            .integer(forKey: "freeGenerationsUsed")
         
-        // Immediately fetch products and update purchased info
+        updateTask = listenForTransactions()
         Task {
             await requestProducts()
-            await updatePurchasedIdentifiers()
+            await refreshEntitlements()
         }
     }
+}
+
+// MARK: – StoreKit helpers
+extension SubscriptionManager {
     
-    /// Request products from StoreKit
+    /// `true` if the user owns `"weeksub"`
+    var isSubscribed: Bool {
+        purchasedIdentifiers.contains("weeksub")
+    }
+    
+    /// `true` → *one more* Gemini request is allowed.
+    var canGenerate: Bool {
+        isSubscribed || freeGenerationsUsed < freeGenerationLimit
+    }
+    
+    /// Call once after *each* successful generation for a **free** user.
+    func markGenerationUsed() {
+        guard !isSubscribed else { return }
+        freeGenerationsUsed += 1
+    }
     func requestProducts() async {
         do {
-            let storeProducts = try await Product.products(for: productIDs)
-            subscriptions = storeProducts
+            subscriptions = try await Product.products(for: productIDs)
         } catch {
-            print("Failed to request products: \(error)")
+            print("❌ StoreKit product request failed:", error)
         }
     }
     
-    /// Listen for any transaction updates (e.g., renewals, cancellations)
     private func listenForTransactions() -> Task<Void, Never> {
         Task.detached { [weak self] in
-            guard let self = self else { return }
-            for await result in Transaction.updates {
-                do {
-                    let transaction = try await self.checkVerified(result)
-                    // If transaction is verified, apply changes
-                    await self.updatePurchasedIdentifiers()
-                    await transaction.finish()
-                } catch {
-                    print("Transaction failed verification")
+            guard let self else { return }
+            for await update in Transaction.updates {
+                if let tx = try? await self.verified(update) {
+                    await self.refreshEntitlements()
+                    await tx.finish()
                 }
             }
         }
     }
     
-    /// Update purchased identifiers from current entitlements
-    private func updatePurchasedIdentifiers() async {
+    private func refreshEntitlements() async {
         purchasedIdentifiers.removeAll()
-        for await verificationResult in Transaction.currentEntitlements {
-            do {
-                let transaction = try checkVerified(verificationResult)
-                purchasedIdentifiers.insert(transaction.productID)
-            } catch {
-                // Not verified
+        for await vr in Transaction.currentEntitlements {
+            if let tx = try? verified(vr) {
+                purchasedIdentifiers.insert(tx.productID)
             }
         }
     }
     
-    /// Purchase a specific product
     func purchase(_ product: Product) async throws -> StoreKit.Transaction? {
-        let result = try await product.purchase()
-        switch result {
-        case .success(let verification):
-            let transaction = try checkVerified(verification)
-            await transaction.finish()
-            await updatePurchasedIdentifiers()
-            return transaction
-        case .userCancelled, .pending:
-            return nil
-        @unknown default:
-            return nil
+        switch try await product.purchase() {
+        case .success(let vr):
+            let tx = try verified(vr)
+            await tx.finish()
+            await refreshEntitlements()
+            return tx
+        case .userCancelled, .pending: return nil
+        @unknown default:              return nil
         }
     }
     
-    /// Verify the transaction with StoreKit
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
-        switch result {
-        case .unverified:
-            throw StoreError.failedVerification
-        case .verified(let safe):
-            return safe
+    // Helper to unwrap verified transactions / results
+    private func verified<T>(_ vr: VerificationResult<T>) throws -> T {
+        switch vr {
+        case .verified(let val): return val
+        case .unverified:        throw StoreError.failedVerification
         }
     }
     
-    enum StoreError: Error {
-        case failedVerification
-    }
+    enum StoreError: Error { case failedVerification }
 }
 import SwiftUI
 import Vision
@@ -1792,7 +2534,7 @@ class ImageEditingViewModel: ObservableObject {
     //var model: DepthAnythingV2SmallF16?
     
     // Proxy endpoint for your Gemini API key.
-    let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini")! // earlier was https://gemini-proxy-flame.vercel.app/api/gemini
+    let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini2")! // earlier was https://gemini-proxy-flame.vercel.app/api/gemini
     
     // Define the target size expected by the model.
     private let targetSize = CGSize(width: 518, height: 392)
@@ -1970,6 +2712,85 @@ class ImageEditingViewModel: ObservableObject {
     
 }
 //
+//  Transformation.swift
+//  HairStyle
+//
+//  Created by adam on 12/05/2025.
+//
+
+
+//
+//  Transformations.swift
+//
+
+import Foundation
+
+/// One transformation shown in onboarding (3 total for now)
+struct Transformation: Identifiable {
+    let id = UUID()
+    let beforeImageName: String   // asset name for “before” photo
+    let afterImageName: String    // asset name for “after” photo
+    let caption: String           // TikTok-style text under the image
+}
+/// Nine sample transformations for onboarding
+let onboardingTransformations: [Transformation] = [
+
+    Transformation(
+        beforeImageName: "remove_before",
+        afterImageName:  "remove_after",
+        caption: "Clutter? Poof—gone 🗑️✨"
+    ),
+
+    Transformation(
+        beforeImageName: "pro_before",
+        afterImageName:  "pro_after",
+        caption: "Corporate glow-up in 1 tap 💼"
+    ),
+
+    Transformation(
+        beforeImageName: "body_before",
+        afterImageName:  "body_after",
+        caption: "Beach-bod confidence 🏖️🔥"
+    ),
+
+    Transformation(
+        beforeImageName: "hug_before",
+        afterImageName:  "hug_after",
+        caption: "Selfie + wild hug = viral 🐻🤗"
+    ),
+
+    Transformation(
+        beforeImageName: "classy_before",
+        afterImageName:  "classy_after",
+        caption: "Bond vibes on the Riviera 🤵🏖️"
+    ),
+
+   /* Transformation(
+        beforeImageName: "fix_before",
+        afterImageName:  "fix_after",
+        caption: "Saved that blurry memory 🛠️📸"
+    ),*/
+
+    Transformation(
+        beforeImageName: "hair_before",
+        afterImageName:  "hair_after",
+        caption: "Big-hair energy 💇‍♀️🚀"
+    ),
+
+    Transformation(
+        beforeImageName: "smile_before",
+        afterImageName:  "smile_after",
+        caption: "Turn that grin on 😁"
+    ),
+
+    Transformation(
+        beforeImageName: "phone_before",
+        afterImageName:  "phone_after",
+        caption: "Hands-free selfie magic 📱✂️"
+    )
+]
+
+//
 //  EnhancementOption.swift
 //  HairStyle
 //
@@ -1995,15 +2816,16 @@ struct EnhancementOption: Identifiable, Equatable {
     let isFree: Bool           // whether this option is free
 }
 
+
 enum BodyEnhancementPrompts {
-    static let breast: [EnhancementOption] = [
-           EnhancementOption(id: "round",               title: "Round",                subtitle: nil,                prompt: "Respectfully enhance chest curvature",                                             isFree: true),
-           EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Enhance chest into a heart‑shaped bust",                                         isFree: true),
-           EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to chest",                                           isFree: false),
-           EnhancementOption(id: "natural_lift",        title: "Natural Lift",        subtitle: nil,                prompt: "Apply natural lift enhancement to chest",                             isFree: false),
-           EnhancementOption(id: "subtle_volume",       title: "Subtle Volume",       subtitle: nil,                prompt: "Respectfully but minimally enhance chest curvature",                           isFree: true),
-           EnhancementOption(id: "snatched_cleavage",   title: "Snatched Cleavage",   subtitle: "Limited‑time free", prompt: "Respectfully but subtly enhance chest curvature",                      isFree: true)
-       ]
+        static let breast: [EnhancementOption] = [
+        EnhancementOption(id: "round",               title: "Round",                subtitle: nil,                prompt: "Respectfully enhance chest curvature",                                             isFree: true),
+        EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Enhance chest into a heart‑shaped bust",                                         isFree: true),
+        EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to chest",                                           isFree: false),
+        EnhancementOption(id: "natural_lift",        title: "Natural Lift",        subtitle: nil,                prompt: "Apply natural lift enhancement to chest",                             isFree: false),
+        EnhancementOption(id: "subtle_volume",       title: "Subtle Volume",       subtitle: nil,                prompt: "Respectfully but minimally enhance chest curvature",                           isFree: true),
+        EnhancementOption(id: "snatched_cleavage",   title: "Snatched Cleavage",   subtitle: "Limited‑time free", prompt: "Respectfully but subtly enhance chest curvature",                      isFree: true)
+        ]
 
        // MARK: – Belly / Core
        static let belly: [EnhancementOption] = [
@@ -2464,6 +3286,26 @@ struct ImagePicker: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
 }
 import SwiftUI
+@main
+struct HairStyleApp: App {
+    @AppStorage("hasSeenDemo")            private var hasSeenDemo            = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    
+    @StateObject private var subscriptionManager = SubscriptionManager()
+    
+    var body: some Scene {
+        WindowGroup {
+            if hasCompletedOnboarding {
+                CatalogView()
+                    .environmentObject(subscriptionManager)
+            } else {
+                OnboardingFlowView()          // ← new flow
+                    .environmentObject(subscriptionManager)
+            }
+        }
+    }
+}
+import SwiftUI
 import Vision
 import CoreML
 import CoreImage
@@ -2570,25 +3412,5 @@ extension UIImage {
         ctx.draw(cgImage, in: rect)
         
         return buffer
-    }
-}
-import SwiftUI
-@main
-struct HairStyleApp: App {
-    @AppStorage("hasSeenDemo")            private var hasSeenDemo            = false
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    
-    @StateObject private var subscriptionManager = SubscriptionManager()
-    
-    var body: some Scene {
-        WindowGroup {
-            if hasCompletedOnboarding {
-                CatalogView()
-                    .environmentObject(subscriptionManager)
-            } else {
-                OnboardingFlowView()          // ← new flow
-                    .environmentObject(subscriptionManager)
-            }
-        }
     }
 }

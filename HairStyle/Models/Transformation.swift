@@ -19,22 +19,61 @@ struct Transformation: Identifiable {
     let afterImageName: String    // asset name for “after” photo
     let caption: String           // TikTok-style text under the image
 }
-
-/// Three sample transformations – swap the asset names for your own
+/// Nine sample transformations for onboarding
 let onboardingTransformations: [Transformation] = [
+
     Transformation(
-        beforeImageName: "a1",
-        afterImageName:  "b1",
-        caption: "Bouncy curls in seconds ✨"
+        beforeImageName: "remove_before",
+        afterImageName:  "remove_after",
+        caption: "Clutter? Poof—gone 🗑️✨"
     ),
+
     Transformation(
-        beforeImageName: "before_volume",
-        afterImageName:  "after_volume",
-        caption: "Instant volume, zero effort 🔥"
+        beforeImageName: "pro_before",
+        afterImageName:  "pro_after",
+        caption: "Corporate glow-up in 1 tap 💼"
     ),
+
     Transformation(
-        beforeImageName: "before_color",
-        afterImageName:  "after_color",
-        caption: "Switch shades like magic 🎨"
+        beforeImageName: "body_before",
+        afterImageName:  "body_after",
+        caption: "Beach-bod confidence 🏖️🔥"
+    ),
+
+    Transformation(
+        beforeImageName: "hug_before",
+        afterImageName:  "hug_after",
+        caption: "Selfie + wild animal encounter = viral 🐻🤗"
+    ),
+
+    Transformation(
+        beforeImageName: "classy_before",
+        afterImageName:  "classy_after",
+        caption: "Bond vibes on the Riviera 🤵🏖️"
+    ),
+
+   /* Transformation(
+        beforeImageName: "fix_before",
+        afterImageName:  "fix_after",
+        caption: "Saved that blurry memory 🛠️📸"
+    ),*/
+
+    Transformation(
+        beforeImageName: "hair_before",
+        afterImageName:  "hair_after",
+        caption: "Big-hair energy 💇‍♀️🚀"
+    ),
+
+    Transformation(
+        beforeImageName: "smile_before",
+        afterImageName:  "smile_after",
+        caption: "Turn that grin on 😁"
+    ),
+
+    Transformation(
+        beforeImageName: "phone_before",
+        afterImageName:  "phone_after",
+        caption: "Hands-free selfie magic 📱✂️"
     )
 ]
+

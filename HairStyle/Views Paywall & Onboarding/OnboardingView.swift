@@ -11,33 +11,33 @@ struct OnboardingView: View {
 
     var body: some View {
         TabView(selection: $currentPage) {
-            // Page 1: Benefit 1
+            // Page 1: Review Prompt (moved to first)
+            ReviewPromptPageView(onContinue: { currentPage = 1 })
+                .tag(0)
+            
+            // Page 2: Benefit 1
             OnboardingPageView(imageName: "star.fill",
                                title: "Amazing Features",
                                description: "Discover advanced AI editing to bring out your best self.",
-                               onContinue: { currentPage = 1 })
-                .tag(0)
-            
-            // Page 2: Benefit 2
-            OnboardingPageView(imageName: "sparkles",
-                               title: "Effortless Beauty",
-                               description: "Instantly enhance your selfies with just a tap.",
                                onContinue: { currentPage = 2 })
                 .tag(1)
             
-            // Page 3: Benefit 3
-            OnboardingPageView(imageName: "heart.fill",
-                               title: "Share Your Style",
-                               description: "Create stunning images and share your unique look with friends.",
+            // Page 3: Benefit 2
+            OnboardingPageView(imageName: "sparkles",
+                               title: "Effortless Beauty",
+                               description: "Instantly enhance your selfies with just a tap.",
                                onContinue: { currentPage = 3 })
                 .tag(2)
             
-            // Page 4: Photo Library Permission
-            PhotoLibraryPermissionPageView(onContinue: { currentPage = 4 })
+            // Page 4: Benefit 3
+            OnboardingPageView(imageName: "heart.fill",
+                               title: "Share Your Style",
+                               description: "Create stunning images and share your unique look with friends.",
+                               onContinue: { currentPage = 4 })
                 .tag(3)
             
-            // Page 5: Review Prompt
-            ReviewPromptPageView(onContinue: { currentPage = 5 })
+            // Page 5: Photo Library Permission
+            PhotoLibraryPermissionPageView(onContinue: { currentPage = 5 })
                 .tag(4)
             
             // Page 6: Paywall

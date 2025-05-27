@@ -1,3 +1,8 @@
+//
+//  BeforeAfterPage.swift
+//  HairStyle
+//
+
 import SwiftUI
 
 struct BeforeAfterPage: View {
@@ -7,13 +12,15 @@ struct BeforeAfterPage: View {
     @State private var showAfter     = false
     @State private var hasInteracted = false
 
+    // device check once
+    private let isPhone = UIDevice.current.userInterfaceIdiom == .phone
+
     var body: some View {
         ZStack {
-            // 1) blurred fill-to-screen bg
+            // blurred background
             GeometryReader { proxy in
-                Image(showAfter
-                        ? transformation.afterImageName
-                        : transformation.beforeImageName)
+                Image(showAfter ? transformation.afterImageName
+                                : transformation.beforeImageName)
                     .resizable()
                     .scaledToFill()
                     .frame(width: proxy.size.width,
@@ -22,83 +29,82 @@ struct BeforeAfterPage: View {
                     .blur(radius: 30)
             }
 
-            // 2) crisp before/after image on top
-            Image(showAfter
-                    ? transformation.afterImageName
-                    : transformation.beforeImageName)
+            // foreground image
+            Image(showAfter ? transformation.afterImageName
+                            : transformation.beforeImageName)
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: .infinity,
-                       maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 3) caption + controls
+            // caption + controls
             VStack {
                 Spacer()
 
                 Text(transformation.caption)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .shadow(radius: 5)
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)                  // white caption everywhere
+                    .shadow(color: .black, radius: 1)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                     .padding(.bottom, 12)
 
                 VStack(spacing: 16) {
-                    WideSegmentedToggle(isAfter: $showAfter)
+                    WideSegmentedToggle(isAfter: $showAfter, isPhone: isPhone)
                         .onChange(of: showAfter) { _ in
                             if !hasInteracted { hasInteracted = true }
                         }
 
-                    Button(action: onContinue) {
+                    // Continue pill
+                    ZStack {
+                        Color.clear.frame(height: 48)
                         Text("Continue")
                             .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                            .foregroundColor(
+                                isPhone ? .white : Color.black.opacity(0.9)
+                            )
+                            .shadow(
+                                color: isPhone ? .black : .clear,
+                                radius: isPhone ? 1 : 0
+                            )
                     }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity,
+                           minHeight: 48, maxHeight: 48)
                     .background(.ultraThinMaterial)
                     .cornerRadius(24)
-                    .shadow(color: .black.opacity(0.25),
-                            radius: 8, x: 0, y: 4)
-                    .opacity(hasInteracted ? 1 : 0.3)
-                    .disabled(!hasInteracted)
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                    .opacity(hasInteracted ? 1 : 0.3)          // fades whole pill
+                    .onTapGesture { if hasInteracted { onContinue() } }
                 }
                 .padding(20)
                 .background(.ultraThinMaterial)
                 .cornerRadius(28)
-                .shadow(color: .black.opacity(0.25),
-                        radius: 12, x: 0, y: 6)
+                .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
             }
         }
-        .ignoresSafeArea()    // ← ensures your blurred bg shows under the home-indicator too
+        .ignoresSafeArea()
     }
 }
 
-
-/// A pill‐shaped toggle whose selected segment
-/// uses a stronger material + higher opacity.
+// ──────────────────────────────────────────────────────────────────
+//  Toggle – receives `isPhone` to colour labels appropriately
+// ──────────────────────────────────────────────────────────────────
 struct WideSegmentedToggle: View {
     @Binding var isAfter: Bool
+    var isPhone: Bool
     private let height: CGFloat = 48
 
     var body: some View {
         HStack(spacing: 0) {
-            segment("Before", active: !isAfter) {
-                withAnimation(.easeInOut) { isAfter = false }
-            }
-            segment("After",  active:  isAfter) {
-                withAnimation(.easeInOut) { isAfter = true }
-            }
+            segment("Before", active: !isAfter) { isAfter = false }
+            segment("After",  active:  isAfter) { isAfter = true  }
         }
         .frame(height: height)
-        .background(.ultraThinMaterial)  // parent track
-        .clipShape(RoundedRectangle(
-            cornerRadius: height/2,
-            style: .continuous
-        ))
-        .shadow(color: .black.opacity(0.25),
-                radius: 8, x: 0, y: 4)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: height / 2,
+                                    style: .continuous))
+        .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
         .animation(.easeInOut, value: isAfter)
     }
 
@@ -107,21 +113,27 @@ struct WideSegmentedToggle: View {
         active: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        ZStack {
+            Color.clear
             Text(label)
                 .font(.headline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .frame(height: height)
+                .foregroundColor(
+                    isPhone ? .white : Color.black.opacity(0.9)
+                )
+                .opacity(isPhone && !active ? 0.6 : 1)        // 60 % on iPhone when inactive
+                .shadow(
+                    color: isPhone ? .black : .clear,
+                    radius: isPhone ? 1 : 0
+                )
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: height/2,
+            RoundedRectangle(cornerRadius: height / 2,
                              style: .continuous)
-                // use a stronger material when selected…
                 .fill(active ? .regularMaterial : .ultraThinMaterial)
-                // …and bump opacity for extra pop
-                .opacity(active ? 1.0 : 0.6)
+                .opacity(active ? 1 : 0.6)
         )
-        .animation(.easeInOut, value: active)
+        .onTapGesture { withAnimation(.easeInOut) { action() } }
     }
 }

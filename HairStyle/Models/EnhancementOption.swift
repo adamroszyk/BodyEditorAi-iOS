@@ -24,15 +24,16 @@ struct EnhancementOption: Identifiable, Equatable {
     let isFree: Bool           // whether this option is free
 }
 
+
 enum BodyEnhancementPrompts {
-    static let breast: [EnhancementOption] = [
-           EnhancementOption(id: "round",               title: "Round",                subtitle: nil,                prompt: "Reposition subject off-center following rule of thirds",                                             isFree: true),
-           EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Introduce soft foreground element for layered depth effect",                                         isFree: true),
-           EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Respectfully even out skin tone with gentle smoothing",                                           isFree: false),
-           EnhancementOption(id: "natural_lift",        title: "Natural Lift",        subtitle: nil,                prompt: "Respectfully sharpen focus on eyes with catchlight enhancement",                             isFree: false),
-           EnhancementOption(id: "subtle_volume",       title: "Subtle Volume",       subtitle: nil,                prompt: "Apply warm, natural color grading for skin glow",                           isFree: true),
-           EnhancementOption(id: "snatched_cleavage",   title: "Snatched Cleavage",   subtitle: "Limited‑time free", prompt: "Respectfully remove cellphone",                      isFree: true)
-       ]
+        static let breast: [EnhancementOption] = [
+        EnhancementOption(id: "round",               title: "Round",                subtitle: nil,                prompt: "Respectfully enhance chest curvature",                                             isFree: true),
+        EnhancementOption(id: "heart_shaped",        title: "Heart‑shaped",        subtitle: "Limited‑time free", prompt: "Enhance chest into a heart‑shaped bust",                                         isFree: true),
+        EnhancementOption(id: "superlift",           title: "Superlift",           subtitle: nil,                prompt: "Apply superlift enhancement to chest",                                           isFree: false),
+        EnhancementOption(id: "natural_lift",        title: "Natural Lift",        subtitle: nil,                prompt: "Apply natural lift enhancement to chest",                             isFree: false),
+        EnhancementOption(id: "subtle_volume",       title: "Subtle Volume",       subtitle: nil,                prompt: "Respectfully but minimally enhance chest curvature",                           isFree: true),
+        EnhancementOption(id: "snatched_cleavage",   title: "Snatched Cleavage",   subtitle: "Limited‑time free", prompt: "Respectfully but subtly enhance chest curvature",                      isFree: true)
+        ]
 
        // MARK: – Belly / Core
        static let belly: [EnhancementOption] = [

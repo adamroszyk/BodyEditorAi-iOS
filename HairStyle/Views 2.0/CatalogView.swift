@@ -3,6 +3,108 @@ import SwiftUI
 struct CatalogView: View {
     // MARK: — Prompt definitions shown in the horizontal panel
     private let promptItems: [PromptItem] = [
+        
+        .init(name: "🗑️ Remove Objects",
+              prompt: "Erase unwanted objects or people from the background and intelligently rebuild the missing scenery for a spotless shot"),
+
+        .init(name: "👔 Professional Photo",
+              prompt: "respectfully make the photo look more professional, like a corporate portrait with neutral backdrop, balanced lighting, and crisp details, keep the face details and photo composition the same"),
+
+        .init(name: "🏖️ Body Tuner",
+              prompt: "Refine waistline, smooth skin, and subtly enhance posture for a confident, natural swimsuit silhouette"),
+
+        .init(name: "🐻 Wild Animal encounter",
+              prompt: "Composite the subject embracing a photorealistic wild animal—matching lighting and shadows for a seamless, share-worthy moment"),
+
+        .init(name: "🤵‍♂️ Classy Seaside",
+              prompt: "Reimagine the portrait on Italy’s sun-soaked coast with Bond-style elegance: turquoise sea, retro speedboat, and golden light"),
+
+        .init(name: "🛠️ Fix Bad Photo",
+              prompt: "Rescue blurry, dark, or pixelated shots by sharpening details, balancing exposure, and reviving true-to-life colours"),
+
+        .init(name: "💇‍♀️ Volume & Style",
+              prompt: "Respectfully enhance the natural hair volume for a salon-perfect finish"),
+
+        .init(name: "😁 Smile Boost",
+              prompt: "Gently lift lip corners, brighten teeth, and align facial harmony to create a natural, confident smile"),
+
+        .init(name: "📱 Phone Removal",
+              prompt: "remove the smartphone from the image, make the pose natural, and add a subtle background, enhance the smile"),
+
+        
+        .init(name: "🌅 Golden-Hour Glow",
+              prompt: "Infuse the scene with gentle sunset warmth, adding soft highlights and a cinematic amber tint"),
+        .init(name: "💡 Fairy-Light Bokeh",
+              prompt: "Scatter dreamy string-light bokeh in the background while keeping the subject tack-sharp"),
+        .init(name: "📸 Mirror Selfie Cleanup",
+              prompt: "Erase smudges, fingerprints, and edge glare for a spotless mirror-selfie finish"),
+        .init(name: "🎞️ 35 mm Film Grain",
+              prompt: "Overlay fine analog grain and subtle color shifts for an authentic film-camera feel"),
+        .init(name: "🏠 Cozy Tone",
+              prompt: "Warm up shadows and mid-tones for a soft, homely ambience that flatters skin tones"),
+        .init(name: "📷 Depth Portrait",
+              prompt: "Simulate DSLR-style depth of field, blurring cluttered closets so the subject pops"),
+        .init(name: "🪞 Reflection Boost",
+              prompt: "Enhance mirror reflections and add subtle vignetting to frame the subject elegantly"),
+        .init(name: "🚪 Closet Fade",
+              prompt: "Desaturate and soften wardrobe colors in the background to reduce visual noise"),
+        .init(name: "🌬️ Soft-Breeze Hair",
+              prompt: "Introduce a gentle hair movement and airy lightness for a candid, in-motion effect"),
+        .init(name: "✨ Velvet Skin",
+              prompt: "Smooth complexion just enough to mimic natural evening light, retaining realistic texture"),
+
+        
+            .init(name: "📱 Story Frame 9:16",
+                  prompt: "Auto-crop to a perfect 9:16 ratio, extending blurred edges if needed so nothing important is lost"),
+            .init(name: "🤳 Arm-Length Perspective",
+                  prompt: "Correct wide-angle distortion from a front-camera lens for natural proportions and straighter lines"),
+            .init(name: "🔆 Window Light Boost",
+                  prompt: "Add soft, directional daylight from one side, creating gentle face highlights and clear catch-lights"),
+            .init(name: "💫 Vertical Lens Flare",
+                  prompt: "Overlay subtle golden flare streaks that run top-to-bottom to enhance back-lit selfies"),
+            .init(name: "➿ Spiral Focus",
+                  prompt: "Apply a delicate spiral blur emanating from corners to draw attention straight to the subject’s eyes"),
+            .init(name: "🎞️ Film Burn Edge",
+                  prompt: "Introduce warm, analog film-burn at the upper and lower edges for a retro story vibe"),
+            .init(name: "🌫️ Haze Fade",
+                  prompt: "Fade distant background elements with a soft vertical haze for extra depth and reduced clutter"),
+            .init(name: "🚶‍♀️ Body Highlight",
+                  prompt: "Add subtle rim lighting along the torso to flatter full-length mirror selfies and define shape"),
+            .init(name: "📏 Slim Stretch",
+                  prompt: "Gently elongate the canvas to add perceived height while preserving realistic body ratios"),
+            .init(name: "🎭 Mood DuoTone",
+                  prompt: "Blend two complementary warm tones from top to bottom, creating a stylish magazine-grade gradient"),
+
+        .init(name: "👩‍💼 CEO Hair",
+              prompt: "Give hair a sleek, power-professional style that’s perfect for LinkedIn headshots"),
+        .init(name: "🧜‍♀️ Mermaid Waves",
+              prompt: "Create soft mermaid-inspired waves with beachy texture—no heat needed"),
+        .init(name: "💖 Barbie Pink",
+              prompt: "Re-colour hair to a glossy, vibrant Barbie-pink while keeping strands defined"),
+        .init(name: "🎮 Anime Glam",
+              prompt: "Transform the photo into stylised anime art with cel-shaded hair and bright eyes"),
+        .init(name: "🌌 Galactic Ombré",
+              prompt: "Blend cosmic purples and blues into a seamless space-ombré gradient"),
+        .init(name: "🚀 Big-Hair Boost",
+              prompt: "Simulate a voluminous salon blow-out with maximum bounce and body"),
+        .init(name: "🪞 Glass Skin",
+              prompt: "Smooth and illuminate complexion for a pore-less glass-skin glow"),
+        .init(name: "🫧 Anti-Frizz",
+              prompt: "Erase frizz and flyaways for silky, perfectly polished strands"),
+        .init(name: "💜 Neon Streaks",
+              prompt: "Paint electrifying neon streaks through the hair for a cyber-punk vibe"),
+        .init(name: "🦸‍♀️ Action Figure",
+              prompt: "Render the subject as a hyper-detailed action figure with dramatic lighting"),
+        .init(name: "🚫 Ex Eraser",
+              prompt: "Remove an unwanted person from the shot while enhancing the remaining subject"),
+        .init(name: "📸 Bokeh Pop",
+              prompt: "Add creamy DSLR-style background bokeh so the subject pops instantly"),
+
+        
+        
+        
+        
+        
         .init(name: "🧹 Remove Objects",
               prompt: "Remove the unwanted objects from the background keeping the subject intact"),
         .init(name: "🎨 Clear Background",
@@ -14,7 +116,70 @@ struct CatalogView: View {
         .init(name: "🪄 Magic Retouch",
               prompt: "Subtly smooth skin and reduce blemishes for a polished finish"),
         .init(name: "✨ Highlight Pop",
-              prompt: "Increase highlights and contrast to make the subject stand out")
+              prompt: "Increase highlights and contrast to make the subject stand out"),
+        .init(name: "🗑️ Object Eraser",
+                  prompt: "Erase distracting items while keeping the main subject crisp"),
+
+            // 2. Body tuning
+            .init(name: "🏋️‍♂️ Body Sculpt",
+                  prompt: "Subtly reshape and refine body contours for a balanced, natural look"),
+
+            // 3. Face retouch
+            .init(name: "💆‍♀️ Face Refine",
+                  prompt: "Smooth skin and adjust facial features while preserving authenticity"),
+
+            // 4. Teeth correction
+            .init(name: "😁 Bright Smile",
+                  prompt: "Whiten and perfect teeth for a confident, natural-looking grin"),
+
+            // 5. Background removal
+            .init(name: "✂️ Cut-Out",
+                  prompt: "Remove the background entirely, delivering a clean transparent PNG"),
+
+            // 6. Wrinkle removal
+            .init(name: "🧴 Smooth Lines",
+                  prompt: "Reduce wrinkles and fine lines for a refreshed appearance"),
+
+            // 7. AI weight loss
+            .init(name: "⚖️ Slim Fit",
+                  prompt: "Trim the silhouette realistically for a slimmer profile"),
+
+            // 8. AI Auto elegance
+            .init(name: "✨ Auto Elegance",
+                  prompt: "Automatically balance tone, lighting, and colour for an upscale finish"),
+
+            // 9. AI Hair – haircut, colouring, restoration
+            .init(name: "💇‍♀️ Hair Studio",
+                  prompt: "Preview new haircuts, colours, or fuller volume with lifelike results"),
+
+            // 10. HD Portrait
+            .init(name: "📸 HD Portrait",
+                  prompt: "Enhance portrait clarity and detail to high-definition quality"),
+
+            // 11. One-touch makeup
+            .init(name: "💄 Insta Makeup",
+                  prompt: "Apply natural-looking makeup instantly, matched to skin tone"),
+
+            // 12. 3D beauty
+            .init(name: "🌀 3D Glam",
+                  prompt: "Add subtle depth and contour for a dimensional beauty effect"),
+
+            // 13. Hi-res
+            .init(name: "🔍 Upscale 4K",
+                  prompt: "Increase resolution up to 4K while preserving sharpness and detail"),
+
+            // 14. Hair volumes
+            .init(name: "🌟 Volume Boost",
+                  prompt: "Add fullness and body to hair for a luxuriously voluminous style"),
+
+            // 15. Beauty filters
+            .init(name: "🎞️ Beauty Film",
+                  prompt: "Apply a soft cinematic filter for an instant glow"),
+
+            // 16. Face tools
+            .init(name: "🛠️ Face Toolkit",
+                  prompt: "Precisely adjust eyes, nose, lips and more with intuitive sliders")
+
     ]
 
     // MARK: — Data for grid sections

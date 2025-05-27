@@ -120,7 +120,7 @@ private extension WeeklyPaywallView {
                         .resizable()
                         .scaledToFill()
                         .frame(width: imageSize, height: imageSize)
-                        .blur(radius: 4.5)
+                        .blur(radius: 6.5)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
@@ -170,11 +170,11 @@ private extension WeeklyPaywallView {
     
     var footer: some View {
         HStack {
-            Button("Terms of Use") { openURL("https://active-outcome.vercel.app/beautyCam") }
+            Button("Terms of Use") { openURL("https://active-outcome.vercel.app/BodyEditorAi#terms-of-use") }
             Spacer()
             Button("Restore Purchase") { Task { await restore() } }
             Spacer()
-            Button("Privacy Policy") { openURL("https://active-outcome.vercel.app/beautyCam") }
+            Button("Privacy Policy") { openURL("https://active-outcome.vercel.app/BodyEditorAi#privacy-policy") }
         }
         .font(.footnote)
         .foregroundColor(.gray)
