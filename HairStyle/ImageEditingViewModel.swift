@@ -20,8 +20,14 @@ class ImageEditingViewModel: ObservableObject {
     // Depth model property
     //var model: DepthAnythingV2SmallF16?
     
-    // Proxy endpoint for your Gemini API key.
-    let apiURL = URL(string: "https://gemini-proxy-flame.vercel.app/api/gemini2")! // earlier was https://gemini-proxy-flame.vercel.app/api/gemini
+    // Proxy endpoint for your Gemini API key (configured in Info.plist).
+    let apiURL: URL = {
+        guard let urlString = Bundle.main.object(forInfoDictionaryKey: "API_URL") as? String,
+              let url = URL(string: urlString) else {
+            fatalError("API_URL missing from Info.plist")
+        }
+        return url
+    }()
     
     // Define the target size expected by the model.
     private let targetSize = CGSize(width: 518, height: 392)
@@ -167,15 +173,6 @@ class ImageEditingViewModel: ObservableObject {
                                     self.editedImage = image
                                 }
                                 
-                                // Only share publicly if the toggle is on.
-                             /*   if self.isPublicSharing {
-                                    CloudinaryManager.upload(image: image) { secureUrl in
-                                        if let url = secureUrl {
-                                            print("Image uploaded to Cloudinary: \(url)")
-                                            // Optionally: save the URL for your feed if needed.
-                                        }
-                                    }
-                                }*/
                             }
                         }
                     } else {
