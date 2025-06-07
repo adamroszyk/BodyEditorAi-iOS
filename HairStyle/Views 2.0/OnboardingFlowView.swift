@@ -34,16 +34,18 @@ struct OnboardingFlowView: View {
                 .tag(extraStart + 1)
 
             // SkillPage *no longer* finishes the flow – it just advances
-            SkillPage { page += 1 }         // tag N+2
+            SkillPage {  done = true }        // call finish() afterwards
+                     // tag N+2
                 .tag(extraStart + 2)
 
-            // 🔑 NEW – Paywall right after the skill page
-            PaywallPageView(
-                isPremium: $premium,        // bind to @AppStorage
-                onComplete: finish          // call finish() afterwards
-            )
-            .tag(extraStart + 3)
 
+            /*// 🔑 NEW – Paywall right after the skill page
+              PaywallPageView(
+                  isPremium: $premium,        // bind to @AppStorage
+                  onComplete: finish          // call finish() afterwards
+              )
+              .tag(extraStart + 3)
+             */
             // Optional: uncomment NotifyPage if you still need it
             // NotifyPage { finish() }
             //     .tag(extraStart + 4)
