@@ -5,7 +5,7 @@ struct CatalogView: View {
     private let promptItems: [PromptItem] = [
         
         .init(name: "🗑️ Remove Objects",
-              prompt: "Erase unwanted objects or people from the background and intelligently rebuild the missing scenery for a spotless shot"),
+              prompt: "Erase unwanted objects or people from the background and intelligently rebuild the missing scenery for a clean shot"),
 
         .init(name: "👔 Professional Photo",
               prompt: "respectfully make the photo look more professional, like a corporate portrait with neutral backdrop, balanced lighting, and crisp details, keep the face details and photo composition the same"),
