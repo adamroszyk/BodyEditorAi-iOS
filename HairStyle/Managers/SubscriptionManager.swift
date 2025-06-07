@@ -25,10 +25,10 @@ final class SubscriptionManager: ObservableObject {
     let freeGenerationLimit = 1      // set to 0 if you want no free runs at all
 
     // -------- Throttle limits (all tiers) ----------------------------------
-    private let perMinuteLimit = 2
-    private let perHourLimit   = 10
-    private let perDayLimit    = 50
-    private let perWeekLimit   = 200
+    private let perMinuteLimit = 1
+    private let perHourLimit   = 5
+    private let perDayLimit    = 25
+    private let perWeekLimit   = 100
 
     // MARK: – Private state --------------------------------------------------
     /// Rolling log of completed generations (kept ≤7 days).
