@@ -120,7 +120,7 @@ private extension WeeklyPaywallView {
                         .resizable()
                         .scaledToFill()
                         .frame(width: imageSize, height: imageSize)
-                        .blur(radius: 6.5)
+                        .blur(radius: 12)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)

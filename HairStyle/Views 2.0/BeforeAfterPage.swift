@@ -26,7 +26,7 @@ struct BeforeAfterPage: View {
                     .frame(width: proxy.size.width,
                            height: proxy.size.height)
                     .clipped()
-                    .blur(radius: 30)
+                    .blur(radius: 15)
             }
 
             // foreground image
@@ -41,12 +41,12 @@ struct BeforeAfterPage: View {
                 Spacer()
 
                 Text(transformation.caption)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)                  // white caption everywhere
-                    .shadow(color: .black, radius: 1)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: .black, radius: 3, x: 0, y: 2)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 20)
 
                 VStack(spacing: 16) {
                     WideSegmentedToggle(isAfter: $showAfter, isPhone: isPhone)
@@ -64,21 +64,29 @@ struct BeforeAfterPage: View {
                             )
                             .shadow(
                                 color: isPhone ? .black : .clear,
-                                radius: isPhone ? 1 : 0
+                                radius: isPhone ? 2 : 0
                             )
                     }
                     .frame(maxWidth: .infinity,
                            minHeight: 48, maxHeight: 48)
                     .background(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.white.opacity(0.4), lineWidth: 1.5)
+                    )
                     .cornerRadius(24)
-                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                    .shadow(color: .black.opacity(0.35), radius: 10, y: 5)
                     .opacity(hasInteracted ? 1 : 0.3)          // fades whole pill
                     .onTapGesture { if hasInteracted { onContinue() } }
                 }
                 .padding(20)
                 .background(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28)
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
                 .cornerRadius(28)
-                .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
+                .shadow(color: .black.opacity(0.35), radius: 14, y: 7)
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
             }
@@ -88,52 +96,57 @@ struct BeforeAfterPage: View {
 }
 
 // ──────────────────────────────────────────────────────────────────
-//  Toggle – receives `isPhone` to colour labels appropriately
+//  Custom Animated Toggle – inspired by the example
 // ──────────────────────────────────────────────────────────────────
 struct WideSegmentedToggle: View {
     @Binding var isAfter: Bool
     var isPhone: Bool
     private let height: CGFloat = 48
+    private let width: CGFloat = 200
 
     var body: some View {
-        HStack(spacing: 0) {
-            segment("Before", active: !isAfter) { isAfter = false }
-            segment("After",  active:  isAfter) { isAfter = true  }
-        }
-        .frame(height: height)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: height / 2,
-                                    style: .continuous))
-        .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-        .animation(.easeInOut, value: isAfter)
-    }
-
-    private func segment(
-        _ label: String,
-        active: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
         ZStack {
-            Color.clear
-            Text(label)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(
-                    isPhone ? .white : Color.black.opacity(0.9)
-                )
-                .opacity(isPhone && !active ? 0.6 : 1)        // 60 % on iPhone when inactive
-                .shadow(
-                    color: isPhone ? .black : .clear,
-                    radius: isPhone ? 1 : 0
-                )
+            // Main background capsule
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                .frame(width: width, height: height)
+                .shadow(color: .black.opacity(0.4), radius: 10, y: 5)
+            
+            // Animated slider that moves between Before and After
+            Capsule()
+                .fill(Color.white.opacity(0.3))
+                .frame(width: width/2 - 4, height: height - 6)
+                .offset(x: isAfter ? width/4 : -width/4)
+                .animation(.easeOut(duration: 0.3), value: isAfter)
+            
+            // Text labels
+            HStack(spacing: 0) {
+                Text("Before")
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .shadow(color: .black, radius: 2)
+                    .frame(width: width/2, height: height)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isAfter = false
+                        }
+                    }
+                
+                Text("After")
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .shadow(color: .black, radius: 2)
+                    .frame(width: width/2, height: height)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isAfter = true
+                        }
+                    }
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .background(
-            RoundedRectangle(cornerRadius: height / 2,
-                             style: .continuous)
-                .fill(active ? .regularMaterial : .ultraThinMaterial)
-                .opacity(active ? 1 : 0.6)
-        )
-        .onTapGesture { withAnimation(.easeInOut) { action() } }
+        .frame(width: width, height: height)
     }
 }

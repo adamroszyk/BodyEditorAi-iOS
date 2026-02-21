@@ -27,7 +27,7 @@ struct PhotoContainerView: View {
                    Image(uiImage: bg)
                        .resizable()
                        .scaledToFill()                          // fills width *and* height
-                       .blur(radius: 7)                         // ⟵ requested blur
+                       .blur(radius: 3)                         // ⟵ requested blur
                        .ignoresSafeArea()                       // under status-/home-bars
                }
 

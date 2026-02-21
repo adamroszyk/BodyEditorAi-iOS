@@ -99,7 +99,7 @@ struct DarkMeshGradient<Content: View>: View {
                 )
                 // A big blur softens the colour transitions so you
                 // don’t see obvious “patches” from the mesh cells.
-                .blur(radius: 80)
+                .blur(radius: 40)
             } else {
                 // Fallback on earlier versions
             }

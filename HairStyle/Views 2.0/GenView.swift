@@ -58,7 +58,7 @@ struct GenView: View {
 
     // Pre-bundled demo avatars
     private var builtInAvatars: [UIImage] = {
-        (1...10).compactMap { UIImage(named: String(format: "Persona%02d", $0)) }
+        (1...23).compactMap { UIImage(named: String(format: "Persona%05d", $0)) }
     }()
 
     // MARK:  Body ------------------------------------------------------------
@@ -230,7 +230,7 @@ struct GenView: View {
         Task.detached(priority: .userInitiated) {
             try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)  // 5 s spinner
 
-            let radii: [Double] = [26, 28, 30, 32, 24, 16]
+            let radii: [Double] = [13, 14, 15, 16, 12, 8]
             let variants: [UIImage?] = radii.map { previous.blurred(radius: $0) }
 
             await MainActor.run {

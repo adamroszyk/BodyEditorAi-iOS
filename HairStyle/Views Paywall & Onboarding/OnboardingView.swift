@@ -40,8 +40,8 @@ struct OnboardingView: View {
             PhotoLibraryPermissionPageView(onContinue: { currentPage = 5 })
                 .tag(4)
             
-            // Page 6: Paywall
-            PaywallPageView(isPremium: $isPremium, onComplete: completeOnboarding)
+            // Page 6: New Onboarding Paywall
+            OnboardingPaywallView(isPremium: $isPremium, onComplete: completeOnboarding)
                 .tag(5)
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))

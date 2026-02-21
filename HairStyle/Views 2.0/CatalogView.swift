@@ -216,6 +216,37 @@ struct CatalogView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
+                    // MARK: — Grok Test Button (Top)
+                    NavigationLink(destination: GrokTestView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "wand.and.stars")
+                                .font(.title2)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Grok AI Lab")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                Text("Test image generation & editing")
+                                    .font(.caption)
+                                    .opacity(0.8)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .opacity(0.6)
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.purple, .pink]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(16)
+                    }
+                    .padding(.horizontal)
+                    
                     // MARK: — Header
                     HStack {
                         Text("BodyEditor Ai")
