@@ -1,0 +1,82 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "blend-mode" : "plus-lighter",
+          "fill" : "automatic",
+          "image-name" : "silhouette_white_lines_transparent.png",
+          "name" : "silhouette_white_lines_transparent",
+          "position" : {
+            "scale" : 1.13,
+            "translation-in-points" : [
+              -35.59500000000003,
+              20.21875
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:0.99414,0.46240,0.54883,1.00000",
+                  "display-p3:0.87199,0.14997,0.67713,1.00000"
+                ],
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.7701263427734375,
+                    "y" : 0.1264495849609375
+                  },
+                  "stop" : {
+                    "x" : 0,
+                    "y" : 0.9646148681640625
+                  }
+                }
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:1.00000,0.42313,0.22915,1.00000",
+                  "display-p3:0.96783,0.36469,0.38358,1.00000"
+                ],
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.9221420288085938,
+                    "y" : 0.097442626953125
+                  },
+                  "stop" : {
+                    "x" : 0.11028289794921875,
+                    "y" : 0.9376373291015625
+                  }
+                }
+              }
+            }
+          ],
+          "image-name" : "New Project-2.png",
+          "name" : "New Project-2"
+        }
+      ],
+      "name" : "Group",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
