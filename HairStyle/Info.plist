@@ -2,10 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIApplicationSceneManifest</key>
-	<dict>
-		<key>UIApplicationSupportsMultipleScenes</key>
-		<true/>
-	</dict>
+        <key>UIApplicationSceneManifest</key>
+        <dict>
+                <key>UIApplicationSupportsMultipleScenes</key>
+                <true/>
+        </dict>
+        <key>CFBundleName</key>
+        <string>HairStyle</string>
+        <key>API_URL</key>
+        <string>https://gemini-proxy-flame.vercel.app/api/gemini2</string>
+        <key>NSCameraUsageDescription</key>
+        <string>This app requires camera access to take photos for editing.</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>This app needs your photo library to select pictures.</string>
 </dict>
 </plist>
